@@ -1,14 +1,9 @@
 CFLAGS += -g
-CFLAGS += -O3
+# CFLAGS += -O3
 
-all: stacky inline
-
-stacky : stacky.c
+all: inline
 
 inline : inline.c
-
-run-stacky: stacky
-	gdb --args ./stacky
 
 run-inline: inline
 	gdb --args ./inline
