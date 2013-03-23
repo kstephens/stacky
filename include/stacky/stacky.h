@@ -35,8 +35,7 @@ typedef struct stacky {
 } stacky;
 
 stacky *stacky_new();
-void stacky_run(stacky *Y, word_t *pc);
-void stacky_isn(stacky *Y, word_t isn);
+stacky *stacky_isn(stacky *Y, word_t isn);
 stacky *stacky_call(stacky *Y, word_t *expr);
 word_t stacky_pop(stacky *Y);
 

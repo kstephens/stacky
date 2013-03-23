@@ -10,7 +10,7 @@ int main(int argc, char **argv)
                    isn_write_int, isn_lcharP, (word_t) "\n", isn_write_charP,
                    isn_rtn, isn_END, };
     ++ Y->trace;
-    stacky_run(Y, e);
+    stacky_call(Y, e);
     -- Y->trace;
   }
 

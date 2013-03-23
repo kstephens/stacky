@@ -59,7 +59,7 @@ int main(int argc, char **argv)
     isn_END,
   };
   // Y->trace = 1;
-  stacky_run(Y, isns);
+  stacky_call(Y, isns);
   }
 
   return 0;

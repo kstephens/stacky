@@ -13,13 +13,13 @@ static struct isn_def isn_table[] = {
   { 0, 0, 0 },
 };
 
-void stacky_isn(stacky *Y, word_t isn)
+stacky *stacky_isn(stacky *Y, word_t isn)
 {
-  word_t expr[] = { isn, isn_rtn, isn_END };
-  stacky_run(Y, expr);
+  word_t expr[] = { isn_hdr, isn, isn_rtn, isn_END };
+  return stacky_call(Y, expr);
 }
 
-void stacky_run(stacky *Y, word_t *pc)
+stacky *stacky_call(stacky *Y, word_t *pc)
 {
   word_t *vp = Y->vp,   *ve = Y->vb + Y->vs;
   word_t **ep = Y->ep, **eb = Y->ep;
@@ -45,7 +45,7 @@ void stacky_run(stacky *Y, word_t *pc)
     stacky_isn(Y, (I));                         \
     vp = Y->vp; ++ Y->trace;                    \
   } while (0)
-#define CALL(E) do { Y->vp = vp; stacky_run(Y, (E)); vp = Y->vp; } while (0)
+#define CALL(E) do { Y->vp = vp; stacky_call(Y, (E)); vp = Y->vp; } while (0)
 
   if ( ! isn_table[0].addr ) {
     struct isn_def *isn;
@@ -311,17 +311,12 @@ void stacky_run(stacky *Y, word_t *pc)
  rtn:
   Y->vp = vp;
   Y->ep = eb;
+  return Y;
 }
 
 word_t stacky_pop(stacky *Y)
 {
   return *(Y->vp --);
-}
-
-stacky *stacky_call(stacky *Y, word_t *expr)
-{
-  stacky_run(Y, expr);
-  return Y;
 }
 
 stacky *stacky_new()
