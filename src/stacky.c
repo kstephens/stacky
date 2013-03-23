@@ -4,11 +4,12 @@ struct isn_def {
   word_t isn;
   int nwords;
   const char *name;
+  const char *isn_ident;
   void *addr;
 };
 
 static struct isn_def isn_table[] = {
-#define ISN(name,nwords) { isn_##name, nwords, #name, },
+#define ISN(name,nwords) { isn_##name, nwords, #name, "%" #name },
 #include "stacky/isns.h"
   { 0, 0, 0 },
 };
@@ -90,7 +91,7 @@ stacky *stacky_call(stacky *Y, word_t *pc)
       switch ( *pc ) {
       case isn_lint:
         fprintf(stderr, "%lld ", (long long) pc[1]); break;
-      case isn_lcharP:
+      case isn_lcharP: case isn_ident_charP:
         fprintf(stderr, "\"%s\" ", (char*) pc[1]); break;
       case isn_ifelse:
         fprintf(stderr, "@%p @%p ", (void*) pc[1], (void*) pc[2]); break;
@@ -355,18 +356,14 @@ stacky *stacky_new()
 
   // Install primitives as "%isn".
   {
-    static struct { const char *name; int isn; } tab[] = {
-#define ISN(name, words) { "%" #name, isn_##name },
-#include "stacky/isns.h"
-      { 0 },
-    };
     int i;
-    for ( i = 0; tab[i].name; ++ i ) {
-      word_t e_isn_[] = { isn_hdr, tab[i].isn, isn_rtn, isn_END };
+    for ( i = 0; isn_table[i].name; ++ i ) {
+      char name[32] = { 0 };
+      word_t e_isn_[] = { isn_hdr, isn_table[i].isn, isn_rtn, isn_END };
       word_t *e_isn = memcpy(malloc(sizeof(e_isn_)), e_isn_, sizeof(e_isn_));
       word_t e[] = {
         isn_dict_stack_top,
-        isn_ident_charP, (word_t) tab[i].name, 
+        isn_ident_charP, (word_t) isn_table[i].isn_ident,
         isn_lvoidP, (word_t) e_isn,
         isn_dict_set, isn_pop,
         isn_rtn, isn_END };
