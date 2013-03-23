@@ -1,4 +1,5 @@
 CFLAGS += -g
+CFLAGS += -O3
 
 all: stacky inline
 

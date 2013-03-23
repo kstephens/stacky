@@ -3,10 +3,22 @@
 #include <string.h>
 
 typedef ssize_t word_t;
-typedef struct stacky {
-  word_t v_stdin, v_stdout, v_stderr;
-  word_t word_dict;
-} stacky;
+typedef void *voidP;
+typedef char *charP;
+typedef unsigned char *ucharP;
+
+typedef struct array {
+  word_t *p;
+  word_t l, s, es;
+} array;
+typedef array *arrayP;
+
+typedef struct dict {
+  word_t *p;
+  word_t l, s, es;
+  word_t eq;
+} dict;
+typedef dict *dictP;
 
 struct isn_def {
   word_t isn;
@@ -23,36 +35,54 @@ static struct isn_def isn_table[] = {
   { 0, 0, 0 },
 };
 
-static word_t threaded_comp;
-static word_t trace;
+typedef struct stacky {
+  word_t  *vb,  *vp; size_t vs;
+  word_t **eb, **ep; size_t es;
+  word_t trace, threaded_comp;
+  word_t v_stdin, v_stdout, v_stderr;
+  word_t ident_dict;
+  word_t dict_stack;
+  word_t result;
+} stacky;
 
-void stacky_go(stacky *Y, word_t *vp, size_t vs, word_t *pc)
+void stacky_run(stacky *Y, word_t *pc);
+void stacky_isn(stacky *Y, word_t isn)
 {
-  word_t *vb = malloc(sizeof(vb[0]) * (vs + 1024));
-  memcpy(vb, vp, sizeof(vb[0]) * vs);
-  vp = vb + vs - 1;
-  vs += 1024;
+  word_t expr[] = { isn, isn_rtn, isn_END };
+  stacky_run(Y, expr);
+}
 
-#define PUSH(X) do {                                      \
-    word_t __tmp = (word_t) (X);                          \
-    if ( ++ vp > vb + vs ) {                              \
-      vs += 1024;                                         \
-      word_t *nvb = realloc(vb, sizeof(vb[0] * vs));      \
-      vp = (vp - vb) + nvb;                               \
-      vb = nvb;                                           \
-    }                                                     \
-    *vp = __tmp;                                          \
+void stacky_run(stacky *Y, word_t *pc)
+{
+  word_t *vp = Y->vp,   *ve = Y->vb + Y->vs;
+  word_t **ep = Y->ep, **eb = Y->eb;
+
+#define PUSH(X) do {                                                  \
+    word_t __tmp = (word_t) (X);                                      \
+    if ( ++ vp >= ve ) {                                              \
+      Y->vs += 1024;                                                  \
+      word_t *nvb = realloc(Y->vb, sizeof(Y->vb[0] * Y->vs));         \
+      vp = (vp - Y->vb) + nvb;                                        \
+      Y->vb = nvb;                                                    \
+      ve = nvb + Y->vs;                                               \
+    }                                                                 \
+    *vp = __tmp;                                                      \
   } while(0)
+#define PUSHt(X,T) PUSH(X)
 #define POP() -- vp
+#define POPN(N) vp -= (N)
 #define V(i) vp[- (i)]
+#define Vt(i,t) (*((t*) (vp - (i))))
+#define CALLISN(I) do { Y->vp = vp; stacky_isn(Y, (I)); vp = Y->vp; } while (0)
+#define CALL(E) do { Y->vp = vp; stacky_run(Y, (E)); vp = Y->vp; } while (0)
 
   if ( ! isn_table[0].addr ) {
     struct isn_def *isn;
-#define ISN(name,lits) isn = &isn_table[isn_##name]; isn->addr = &&label_##name;
+#define ISN(name,lits) isn = &isn_table[isn_##name]; isn->addr = &&L_##name;
 #include "isns.h"
   }
 
-  if ( threaded_comp && *pc == isn_hdr ) {
+  if ( Y->threaded_comp && *pc == isn_hdr ) {
     word_t *pc_save = pc;
     *(pc ++) = isn_hdr_;
     while ( *pc != isn_END ) {
@@ -68,20 +98,30 @@ void stacky_go(stacky *Y, word_t *vp, size_t vs, word_t *pc)
   }
 
  next_isn:
-  if ( trace ) {
-    word_t *p = vb;
-    while ( p <= vp )
-      fprintf(stderr, "%lld ", (long long) *(p ++));
+  if ( Y->trace ) {
+    { 
+      word_t **p = eb;
+      while ( p < ep )
+        fprintf(stderr, "@%p ", (void*) *(p ++));
+      fprintf(stderr, "| ");
+    }
+    {
+      word_t *p = Y->vb;
+      while ( p <= vp )
+        fprintf(stderr, "%lld ", (long long) *(p ++));
+    }
     fprintf(stderr, "| @%p ", (void*) pc);
     if ( *pc <= isn_END ) {
       fprintf(stderr, "%s ", isn_table[*pc].name);
       switch ( *pc ) {
       case isn_lint:
         fprintf(stderr, "%lld ", (long long) pc[1]); break;
-      case isn_lstr:
+      case isn_lcharP:
         fprintf(stderr, "\"%s\" ", (char*) pc[1]); break;
       case isn_ifelse:
         fprintf(stderr, "@%p @%p ", (void*) pc[1], (void*) pc[2]); break;
+      case isn_ifelser:
+        fprintf(stderr, "@%p @%p ", (void*) pc + 2 + pc[1], (void*) pc + 2 + pc[2]); break;
       }
     } else {
       fprintf(stderr, "%p ", *((void**) pc));
@@ -89,51 +129,226 @@ void stacky_go(stacky *Y, word_t *vp, size_t vs, word_t *pc)
     fprintf(stderr, "\n");
   }
 
-#define ISN(name) goto next_isn; case isn_##name: label_##name
+#define ISN(name) goto next_isn; case isn_##name: L_##name
   switch ( (int) *(pc ++) ) {
   ISN(nul):   abort();
-  ISN(nop):   ;
-  ISN(rtn):   goto rtn;
-  ISN(lint):  PUSH(*(pc ++));
-  ISN(lstr):  PUSH(*(pc ++));
+  ISN(hdr):
+  ISN(hdr_):
+  ISN(nop):
+  ISN(lint):   PUSHt(*(pc ++),int);
+  ISN(lcharP): PUSHt(*(pc ++),charP);
+  ISN(lvoidP): PUSHt(*(pc ++),voidP);
+  ISN(eq_charP): V(1) = ! strcmp(Vt(1, charP), Vt(0, charP)); POP();
+  ISN(vget):  V(0) = V(V(0));
+  ISN(vset):  V(V(1)) = V(0); POPN(2);
   ISN(dup):   PUSH(V(0));
   ISN(pop):   POP();
   ISN(swap):  { word_t tmp = V(0); V(0) = V(1); V(1) = tmp; }
 #define BOP(name, op) ISN(name): V(1) = V(1) op V(0); POP();
 #define UOP(name, op) ISN(name): V(0) = op V(0);
 #include "cops.h"
+  ISN(ifelser):
+    pc += 2;
+    pc[-3] = isn_ifelse;
+    pc[-2] = (word_t) (pc + pc[-2]);
+    pc[-1] = (word_t) (pc + pc[-1]);
+    pc -= 2;
+    goto L_ifelse;
   ISN(ifelse):
     if ( V(0) ) {
       POP(); pc = ((word_t**) pc)[0];
     } else {
       POP(); pc = ((word_t**) pc)[1];
     }
-  ISN(writeint):
+  ISN(jmpr):
+    ++ pc;
+    pc[-2] = isn_jmp;
+    pc[-1] = (word_t) (pc + pc[-1]);
+    pc = (word_t*) pc[-1];
+  ISN(jmp):
+    pc = (word_t*) pc[0];
+  ISN(write_int):
     fprintf(stdout, "%lld", (long long) V(0)); POP();
-  ISN(writestr):
-    fprintf(stdout, "%s", (char*) V(0)); POP();
-  ISN(hdr):
-  ISN(hdr_):
-  ISN(END):   goto rtn;
+  ISN(write_charP):
+    fprintf(stdout, "%s", Vt(0,charP)); POP();
+  ISN(write_voidP):
+    fprintf(stdout, "@%p", Vt(0,voidP)); POP();
+  ISN(c_malloc):  Vt(0,voidP) = malloc(V(0));
+  ISN(c_realloc): Vt(1,voidP) = realloc(Vt(1,voidP), V(0)); POP();
+  ISN(c_free):    free(Vt(0,voidP)); POP();
+  ISN(c_memmove): memmove(Vt(2,voidP), Vt(1,voidP), Vt(0,size_t)); POPN(3);
+  ISN(array_new): {
+      array *a = malloc(sizeof(*a));
+      a->l = 0;
+      a->s = Vt(0,size_t);
+      a->es = sizeof(word_t);
+      a->p = malloc(a->s * a->es);
+      memset(a->p, 0, a->s * a->es);
+      Vt(0,arrayP) = a;
+    }
+  ISN(array_ptr):  Vt(0,voidP)  = Vt(0,arrayP)->p;
+  ISN(array_len):  Vt(0,size_t) = Vt(0,arrayP)->l;
+  ISN(array_size): Vt(0,size_t) = Vt(0,arrayP)->s;
+  ISN(array_get):  V(1) = Vt(1,arrayP)->p[V(0)]; POP();
+  ISN(array_set):  Vt(2,arrayP)->p[V(1)] = V(0); POPN(2);
+  ISN(array_push): {
+      array *a = Vt(1,arrayP);
+      if ( a->l >= a->s ) {
+        a->p = realloc(a->p, (a->s + 1) * a->es);
+      }
+      a->p[a->l ++] = V(0);
+      POP();
+    }
+  ISN(array_pop): {
+      array *a = Vt(0,array*);
+      V(0) = a->p[a->l --];
+    }
+  ISN(dict_new): {
+      dict *a = malloc(sizeof(*a));
+      a->eq = V(0);
+      a->l = 0;
+      a->s = 8;
+      a->es = sizeof(word_t);
+      a->p = malloc(a->s * a->es);
+      memset(a->p, 0, a->s * a->es);
+      Vt(0,dictP) = a;
+    }
+  ISN(dict_get): {
+      dict *a = Vt(2,dictP);
+      word_t k = V(1), v = V(0);
+      size_t i = 0;
+      while ( i < a->l ) {
+        PUSH(k); PUSH(a->p[i]); PUSH(a->eq); CALLISN(isn_call);
+        if ( V(0) ) {
+          POP();
+          V(2) = a->p[i + 1];
+          goto dict_get_done;
+        }
+        i += 2;
+      }
+      V(2) = v;
+    dict_get_done:
+      POPN(2);
+    }
+  ISN(dict_set): {
+      dict *a = Vt(2,dictP);
+      word_t k = V(1);
+      word_t v = V(0);
+      size_t i = 0;
+      while ( i < a->l ) {
+        PUSH(k); PUSH(a->p[i]); PUSH(a->eq); CALLISN(isn_call);
+        if ( V(0) ) {
+          POP();
+          a->p[i + 1] = V(0);
+          POPN(2);
+          goto dict_set_done;
+        }
+        POP();
+        i += 2;
+      }
+      POPN(2);
+      PUSH(k); CALLISN(isn_array_push);
+      PUSH(v); CALLISN(isn_array_push);
+    dict_set_done:
+      (void) 0;
+    }
+  ISN(ident): {
+      char *str = Vt(0,charP);
+      PUSH(Y->ident_dict); PUSH(str); PUSH(0); CALLISN(isn_dict_get);
+      if ( ! V(0) ) {
+        str = strcpy(malloc(strlen(str) + 1), str);
+        PUSH(Y->ident_dict); PUSH(str); PUSH(str); CALLISN(isn_dict_set);
+        POP();
+        fprintf(stderr, "  new ident %s\n", str);
+        Vt(0,charP) = str;
+      }
+    }
+  ISN(ident_charP): {
+      char *str = (void*) *(pc ++);
+      PUSH(str); CALLISN(isn_ident);
+      pc[-2] = isn_lcharP;
+      pc[-1] = V(0);
+    }
+  ISN(wget): V(1) = Vt(1,word_t*)[V(0)]; POP();
+  ISN(wset): Vt(2,word_t*)[V(1)] = V(0); POPN(2);
+  ISN(cget): V(1) = Vt(1,ucharP)[V(0)]; POP();
+  ISN(cset): Vt(2,ucharP)[V(1)] = V(0); POPN(2);
+  ISN(call):
+    *(ep ++) = pc;
+    pc = Vt(0,word_t*); POP();
+  ISN(rtn):
+    if ( ep <= eb ) goto rtn;
+    pc = *(-- ep);
+  ISN(END):  goto rtn;
   }
 
  rtn:
-  free(vb);
+  Y->result = V(0);
+  Y->vp = vp;
+  Y->ep = ep;
+}
+
+word_t stacky_call(stacky *Y, word_t *expr)
+{
+  stacky_run(Y, expr);
+  -- Y->vp;
+  return Y->result;
+}
+
+stacky *stacky_new()
+{
+  stacky *Y = malloc(sizeof(*Y));
+
+  Y->vs = 1024;
+  Y->vb = malloc(sizeof(Y->vb[0]) * Y->vs);
+  Y->vp = Y->vb - 1;
+  *(++ Y->vp) = 0;
+  
+  Y->es = 1024;
+  Y->eb = malloc(sizeof(Y->eb[0]) * Y->es);
+  Y->ep = Y->eb;
+
+  { 
+    static word_t e[]= { isn_lint, 0, isn_array_new, isn_rtn, isn_END };
+    Y->dict_stack = stacky_call(Y, e);
+  }
+  {
+    static word_t e_eq_charP[] = { isn_eq_charP, isn_rtn, isn_END };
+    static word_t e[] = { isn_lvoidP, (word_t) e_eq_charP, isn_dict_new, isn_rtn, isn_END }; 
+    Y->ident_dict = stacky_call(Y, e);
+  }
+  return Y;
 }
 
 int main(int argc, char **argv)
 {
+  stacky *Y = stacky_new();
   word_t t[] = {
     isn_hdr,
-    isn_lstr, (word_t) " true\n",
-    isn_writestr,
+    isn_lcharP, (word_t) " true\n",
+    isn_write_charP,
+    isn_rtn,
     isn_END,
   };
   word_t f[] = {
     isn_hdr,
-    isn_lstr, (word_t) " false\n",
-    isn_writestr,
+    isn_lcharP, (word_t) " false\n",
+    isn_write_charP,
+    isn_rtn,
     isn_END,
+  };
+  word_t eq[] = {
+    isn_hdr,
+    isn_eq,
+    isn_rtn,
+    isn_END,
+  };
+  word_t ident[] = {
+    isn_hdr,
+    isn_lcharP, (word_t) " ident: ", isn_write_charP,
+    isn_ident_charP, (word_t) "foo",
+    isn_write_charP, isn_lcharP, (word_t) "\n", isn_write_charP,
+    isn_rtn, isn_END,
   };
   word_t isns[] = {
     isn_hdr,
@@ -143,14 +358,26 @@ int main(int argc, char **argv)
     isn_lint, 5,
     isn_mul,
     isn_dup,
-    isn_writeint,
+    isn_write_int,
     isn_lint, 25,
     isn_ge,
-    isn_ifelse, (word_t) t, (word_t) f,
+    isn_ifelser, (word_t) 0, (word_t) 5,
+    isn_lvoidP, (word_t) t, isn_call,
+    isn_jmpr, 3,
+    isn_lvoidP, (word_t) f, isn_call,
+    isn_lvoidP, (word_t) eq, isn_dict_new,
+    isn_lint, 1, isn_lint, 2, isn_dict_set,
+    isn_dup, isn_lint, 1, isn_lint, 0, isn_dict_get,
+    isn_write_int, isn_lcharP, (word_t) "\n", isn_write_charP,
+    isn_dup, isn_lint, 3, isn_lint, 0, isn_dict_get,
+    isn_write_int, isn_lcharP, (word_t) "\n", isn_write_charP,
+    isn_pop,
+    isn_lvoidP, (word_t) ident, isn_call,
+    isn_lvoidP, (word_t) ident, isn_call,
     isn_rtn,
     isn_END,
   };
-  stacky *Y = malloc(sizeof(*Y));
-  stacky_go(Y, 0, 0, isns);
+  // Y->trace = 1;
+  stacky_run(Y, isns);
   return 0;
 }
