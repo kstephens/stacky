@@ -1,4 +1,4 @@
-#include "stacky.h"
+#include "stacky/stacky.h"
 
 struct isn_def {
   word_t isn;
@@ -9,7 +9,7 @@ struct isn_def {
 
 static struct isn_def isn_table[] = {
 #define ISN(name,nwords) { isn_##name, nwords, #name, },
-#include "isns.h"
+#include "stacky/isns.h"
   { 0, 0, 0 },
 };
 
@@ -50,7 +50,7 @@ void stacky_run(stacky *Y, word_t *pc)
   if ( ! isn_table[0].addr ) {
     struct isn_def *isn;
 #define ISN(name,lits) isn = &isn_table[isn_##name]; isn->addr = &&L_##name;
-#include "isns.h"
+#include "stacky/isns.h"
   }
 
   if ( Y->threaded_comp && *pc == isn_hdr ) {
@@ -120,7 +120,7 @@ void stacky_run(stacky *Y, word_t *pc)
   ISN(swap):  { word_t tmp = V(0); V(0) = V(1); V(1) = tmp; }
 #define BOP(name, op) ISN(name): V(1) = V(1) op V(0); POP();
 #define UOP(name, op) ISN(name): V(0) = op V(0);
-#include "cops.h"
+#include "stacky/cops.h"
   ISN(ifelser):
     pc += 2;
     pc[-3] = isn_ifelse;
@@ -362,7 +362,7 @@ stacky *stacky_new()
   {
     static struct { const char *name; int isn; } tab[] = {
 #define ISN(name, words) { "%" #name, isn_##name },
-#include "isns.h"
+#include "stacky/isns.h"
       { 0 },
     };
     int i;
@@ -384,85 +384,3 @@ stacky *stacky_new()
   return Y;
 }
 
-int main(int argc, char **argv)
-{
-  stacky *Y = stacky_new();
-  {
-  word_t t[] = {
-    isn_hdr,
-    isn_lcharP, (word_t) " true\n",
-    isn_write_charP,
-    isn_rtn,
-    isn_END,
-  };
-  word_t f[] = {
-    isn_hdr,
-    isn_lcharP, (word_t) " false\n",
-    isn_write_charP,
-    isn_rtn,
-    isn_END,
-  };
-  word_t eq[] = {
-    isn_hdr,
-    isn_eq,
-    isn_rtn,
-    isn_END,
-  };
-  word_t ident[] = {
-    isn_hdr,
-    isn_lcharP, (word_t) " ident: ", isn_write_charP,
-    isn_ident_charP, (word_t) "foo",
-    isn_write_charP, isn_lcharP, (word_t) "\n", isn_write_charP,
-    isn_rtn, isn_END,
-  };
-  word_t isns[] = {
-    isn_hdr,
-    isn_lint, 2,
-    isn_lint, 3,
-    isn_add,
-    isn_lint, 5,
-    isn_mul,
-    isn_dup,
-    isn_write_int,
-    isn_lint, 25,
-    isn_ge,
-    isn_ifelser, (word_t) 0, (word_t) 5,
-    isn_lvoidP, (word_t) t, isn_call,
-    isn_jmpr, 3,
-    isn_lvoidP, (word_t) f, isn_call,
-    isn_lvoidP, (word_t) eq, isn_dict_new,
-    isn_lint, 1, isn_lint, 2, isn_dict_set,
-    isn_dup, isn_lint, 1, isn_lint, 0, isn_dict_get,
-    isn_write_int, isn_lcharP, (word_t) "\n", isn_write_charP,
-    isn_dup, isn_lint, 3, isn_lint, 0, isn_dict_get,
-    isn_write_int, isn_lcharP, (word_t) "\n", isn_write_charP,
-    isn_pop,
-    isn_lvoidP, (word_t) ident, isn_call,
-    isn_lvoidP, (word_t) ident, isn_call,
-    isn_rtn,
-    isn_END,
-  };
-  // Y->trace = 1;
-  stacky_run(Y, isns);
-  }
-
-  {
-    word_t e[] = { isn_hdr,
-                   isn_lint, 1, isn_lint, 1,
-                   isn_ident_charP, (word_t) "%eq", isn_lookup, isn_call,
-                   isn_write_int, isn_lcharP, (word_t) "\n", isn_write_charP,
-                   isn_rtn, isn_END, };
-    ++ Y->trace;
-    stacky_run(Y, e);
-    -- Y->trace;
-  }
-
-  {
-    word_t e[] = { isn_hdr, isn_lint, 1, isn_lvoidP, (word_t) exit, isn_c_proc, 1, isn_rtn, isn_END };
-    ++ Y->trace;
-    stacky_run(Y, e);
-    -- Y->trace;
-  }
-
-  return 0;
-}

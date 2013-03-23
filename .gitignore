@@ -1,3 +1,5 @@
-stacky
 *.dSYM
 *.o
+lib*.a
+/t/*.t
+
