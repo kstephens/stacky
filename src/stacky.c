@@ -185,7 +185,7 @@ void stacky_run(stacky *Y, word_t *pc)
       d->es = sizeof(word_t);
       d->p = malloc(d->s * d->es);
       memset(d->p, 0, d->s * d->es);
-      fprintf(stderr, "  dict_new %lld\n", (long long) d);
+      // fprintf(stderr, "  dict_new %lld\n", (long long) d);
       Vt(0,dictP) = d;
     }
   ISN(dict_get): {
@@ -243,7 +243,7 @@ void stacky_run(stacky *Y, word_t *pc)
         str = strcpy(malloc(strlen(str) + 1), str);
         PUSH(Y->ident_dict); PUSH(str); PUSH(str); CALLISN(isn_dict_set);
         POP();
-        fprintf(stderr, "  ident %lld %s\n", (long long) str, str);
+        // fprintf(stderr, "  ident %lld %s\n", (long long) str, str);
         Vt(0,charP) = str;
       }
     }
