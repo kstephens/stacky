@@ -18,6 +18,12 @@ $(LIB) : $(LIB_O)
 
 $(T_T) : $(LIB)
 
+test: $(T_T)
+	@for t in $(T_T); do \
+	  echo "+ $$t" ;\
+	  $$t ;\
+	done
+
 clean:
 	rm -f src/*.o src/lib*.a t/*.t t/*.dSYM
 
