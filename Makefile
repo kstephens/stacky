@@ -15,6 +15,9 @@ all: $(LIB) $(T_T)
 
 $(LIB) : $(LIB_O)
 	ar r $@ $(LIB_O)
+
+$(T_T) : $(LIB)
+
 clean:
 	rm -f src/*.o src/lib*.a t/*.t t/*.dSYM
 
