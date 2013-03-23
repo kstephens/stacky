@@ -4,14 +4,19 @@ int main(int argc, char **argv)
 {
   stacky *Y = stacky_new();
   {
+    char eq1[] = "%eq";
+    char eq2[] = "%eq";
+    char eq3[] = "%eq";
     word_t e[] = { isn_hdr,
-                   isn_lint, 1, isn_lint, 1,
-                   isn_ident_charP, (word_t) "%eq", isn_lookup, isn_call,
+                   isn_ident_charP, (word_t) eq1,
+                   isn_ident_charP, (word_t) eq2,                   
+                   isn_ident_charP, (word_t) eq3, isn_lookup, isn_call,
+                   isn_lcharP, (word_t) "@%eq @%eq %eq = ", isn_write_charP,
                    isn_write_int, isn_lcharP, (word_t) "\n", isn_write_charP,
                    isn_rtn, isn_END, };
-    ++ Y->trace;
+    // ++ Y->trace;
     stacky_call(Y, e);
-    -- Y->trace;
+    // -- Y->trace;
   }
 
   return 0;
