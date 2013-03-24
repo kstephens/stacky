@@ -19,9 +19,9 @@ $(LIB) : $(LIB_O)
 $(T_T) : $(LIB)
 
 test: $(T_T)
-	@for t in $(T_T); do \
-	  echo "+ $$t" ;\
-	  $$t ;\
+	@set -e; for t in $(T_T); do \
+	  (set +e; echo "+ $$t" ; $$t ; echo "exit($$?)") | tee $$t.out ;\
+	  diff -u $$t.exp $$t.out ;\
 	done
 
 clean:
