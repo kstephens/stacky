@@ -1,10 +1,13 @@
+CC = clang
 CFLAGS += -g
 CFLAGS += -Iinclude
 # CFLAGS += -O3
 
 LIB = src/libstacky.a
-LIB_C = $(shell ls src/*.c)
+LIB_C := $(shell ls src/*.c)
 LIB_O = $(LIB_C:.c=.o)
+
+INCLUDE_H := $(shell ls include/*/*.h)
 
 LDFLAGS += -Lsrc -lstacky
 
@@ -16,7 +19,10 @@ all: $(LIB) $(T_T)
 $(LIB) : $(LIB_O)
 	ar r $@ $(LIB_O)
 
+$(LIB_O) : $(INCLUDE_H)
+
 $(T_T) : $(LIB)
+# $(T_T) :: $(INCLUDE_H)
 
 test: $(T_T)
 	@for t in $(T_T); do \
@@ -28,5 +34,6 @@ test: $(T_T)
 	@echo test: OK
 
 clean:
-	rm -f src/*.o src/lib*.a t/*.t t/*.dSYM
+	rm -f src/*.o src/lib*.a t/*.t
+	rm -rf t/*.dSYM
 
