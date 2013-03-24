@@ -1,0 +1,6 @@
++ t/test1.t
+25 true
+2
+0
+ ident: foo
+exit(0)

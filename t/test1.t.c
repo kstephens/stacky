@@ -57,7 +57,6 @@ int main(int argc, char **argv)
     isn_rtn,
     isn_END,
   };
-  // Y->trace = 1;
   stacky_call(Y, isns);
   }
 

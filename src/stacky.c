@@ -22,8 +22,8 @@ stacky *stacky_isn(stacky *Y, word_t isn)
 
 stacky *stacky_call(stacky *Y, word_t *pc)
 {
-  word_t *vp = Y->vp,   *ve = Y->vb + Y->vs;
-  word_t **ep = Y->ep, **eb = Y->ep;
+  word_t  *vp = Y->vs.p,  *ve = Y->vs.b + Y->vs.s;
+  word_t **ep = (void*) Y->es.p, **eb = (void*) Y->es.b;
 
 #define PUSH(X) do {                                                  \
     word_t __tmp = (word_t) (X);                                      \
@@ -79,7 +79,7 @@ stacky *stacky_call(stacky *Y, word_t *pc)
       fprintf(stderr, "| \n");
     }
     {
-      word_t *p = Y->vb;
+      word_t *p = Y->vs.b;
       fprintf(stderr, "  # V: ");
       while ( p <= vp )
         fprintf(stderr, "%lld ", (long long) *(p ++));
@@ -164,11 +164,11 @@ stacky *stacky_call(stacky *Y, word_t *pc)
       memset(a->p, 0, a->s * a->es);
       Vt(0,arrayP) = a;
     }
-  ISN(array_ptr):  Vt(0,voidP)  = Vt(0,arrayP)->p;
+  ISN(array_ptr):  Vt(0,voidP)  = Vt(0,arrayP)->b;
   ISN(array_len):  Vt(0,size_t) = Vt(0,arrayP)->l;
   ISN(array_size): Vt(0,size_t) = Vt(0,arrayP)->s;
-  ISN(array_get):  V(1) = Vt(1,arrayP)->p[V(0)]; POP();
-  ISN(array_set):  Vt(2,arrayP)->p[V(1)] = V(0); POPN(2);
+  ISN(array_get):  V(1) = Vt(1,arrayP)->b[V(0)]; POP();
+  ISN(array_set):  Vt(2,arrayP)->b[V(1)] = V(0); POPN(2);
   ISN(array_push): {
       array *a = Vt(1,arrayP);
       if ( a->l >= a->s ) {
@@ -179,7 +179,7 @@ stacky *stacky_call(stacky *Y, word_t *pc)
     }
   ISN(array_pop): {
       array *a = Vt(0,array*);
-      V(0) = a->p[-- a->l];
+      V(0) = *(a->p = a->b + -- a->l);
     }
   ISN(dict_new): {
       dict *d = malloc(sizeof(*d));
@@ -203,7 +203,7 @@ stacky *stacky_call(stacky *Y, word_t *pc)
         CALLISN(isn_call);
         if ( V(0) ) {
           POP();
-          V(2) = d->p[i + 1];
+          V(2) = d->a.b[i + 1];
           goto dict_get_done;
         }
         POP();
@@ -224,7 +224,7 @@ stacky *stacky_call(stacky *Y, word_t *pc)
         CALLISN(isn_call);
         if ( V(0) ) {
           POP();
-          d->p[i + 1] = V(0);
+          d->a.b[i + 1] = V(0);
           POPN(2);
           goto dict_set_done;
         }
@@ -313,20 +313,18 @@ stacky *stacky_call(stacky *Y, word_t *pc)
 #undef ISN
 
  rtn:
-  Y->vp = vp;
-  Y->ep = eb;
+  Y->vs.p = vp;
+  Y->es.p = (void*) eb;
   return Y;
 }
 
 word_t stacky_pop(stacky *Y)
 {
-  return *(Y->vp --);
+  return *(Y->vs.p --);
 }
 
 stacky *stacky_new()
 {
-  static word_t e_eq[] = { isn_hdr, isn_eq, isn_rtn, isn_END };
-  static word_t e_eq_charP[] = { isn_eq_charP, isn_rtn, isn_END };
   stacky *Y = malloc(sizeof(*Y));
   Y->v_stdin = (word_t) stdin;
   Y->v_stdout = (word_t) stdout;
@@ -342,16 +340,16 @@ stacky *stacky_new()
   Y->ep = Y->eb;
 
   {
+    static word_t e_eq_charP[] = { isn_eq_charP, isn_rtn, isn_END };
     static word_t e[] = { isn_lvoidP, (word_t) e_eq_charP, isn_dict_new, isn_rtn, isn_END }; 
     Y->ident_dict = (void*) stacky_pop(stacky_call(Y, e));
   }
-
   { 
     static word_t e[] = { isn_lint, 0, isn_array_new, isn_rtn, isn_END };
     Y->dict_stack = (void*) stacky_pop(stacky_call(Y, e));
   }
-
   {
+    static word_t e_eq[] = { isn_hdr, isn_eq, isn_rtn, isn_END };
     word_t e[] = {
       isn_dict_stack,
       isn_lvoidP, (word_t) e_eq, isn_dict_new,
@@ -359,8 +357,6 @@ stacky *stacky_new()
       isn_rtn, isn_END };
     stacky_call(Y, e);
   }
-
-  // Install primitives as "%isn".
   {
     int i;
     for ( i = 0; isn_table[i].name; ++ i ) {

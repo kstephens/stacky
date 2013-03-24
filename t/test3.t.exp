@@ -1,0 +1,2 @@
++ t/test3.t
+exit(1)
