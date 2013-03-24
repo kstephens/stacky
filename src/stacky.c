@@ -1,4 +1,5 @@
 #include "stacky/stacky.h"
+#include "gc/gc.h"
 
 struct isn_def {
   stky_i isn;
@@ -14,6 +15,9 @@ static struct isn_def isn_table[] = {
   { 0, 0, 0 },
 };
 
+#define stky_malloc(S)    GC_malloc(S)
+#define stky_realloc(P,S) GC_realloc(P,S)
+
 stacky *stacky_isn(stacky *Y, stky_i isn)
 {
   stky_i expr[] = { isn_hdr, isn, isn_rtn, isn_END };
@@ -24,7 +28,7 @@ stacky_array *stacky_array_init(stacky *Y, stacky_array *a, size_t es, size_t s)
 {
   size_t cs;
   a->o.type = stky_t(array);
-  a->p = a->b = malloc(cs = (a->es = es) * ((a->s = s) + 1));
+  a->p = a->b = stky_malloc(cs = (a->es = es) * ((a->s = s) + 1));
   memset(a->b, 0, cs);
   a->l = 0;
   return a;
@@ -32,7 +36,7 @@ stacky_array *stacky_array_init(stacky *Y, stacky_array *a, size_t es, size_t s)
 
 stacky_array *stacky_array_dup(stacky *Y, stacky_array *a)
 {
-  stacky_array *b = stacky_array_init(Y, malloc(sizeof(*a)), a->es, a->s);
+  stacky_array *b = stacky_array_init(Y, stky_malloc(sizeof(*a)), a->es, a->s);
   b->o.type = a->o.type;
   memcpy(b->b, a->b, a->es * a->l);
   return a;
@@ -43,7 +47,7 @@ stacky_string *stky_string_new_charP(stacky *Y, char *p, size_t s)
   stacky_string *o;
   if ( ! p ) return 0;
   if ( s == -1LL ) s = strlen(p);
-  o = malloc(sizeof(*o));
+  o = stky_malloc(sizeof(*o));
   stacky_array_init(Y, (void*) o, 1, s + 1);
   o->o.type = stky_t(string);
   memcpy(o->b, p, s + 1);
@@ -55,7 +59,7 @@ stacky *stacky_array_resize(stacky *Y, stacky_array *a, size_t s)
 {
   stky_v *nb;
   // fprintf(stderr, "  array %p b:s %p:%lu p:l %p:%lu\n", a, a->b, (unsigned long) a->s, a->p, (unsigned long) a->l);  
-  nb = realloc(a->b, a->es * s);
+  nb = stky_realloc(a->b, a->es * s);
   a->s = s;
   if ( a->l > a->s ) a->l = a->s;
   a->p = nb + (a->p - a->b);
@@ -97,6 +101,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
     vp = Y->vp; ve = Y->vs.b + Y->vs.s;         \
   } while (0)
 
+#if 0
   if ( ! isn_table[0].addr ) {
     struct isn_def *isn;
 #define ISN(name,lits) isn = &isn_table[isn_##name]; isn->addr = &&L_##name;
@@ -117,8 +122,10 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
     pc ++;
     goto *((void**) (pc ++));
   }
+#endif
 
  next_isn:
+#if 1
   if ( Y->trace > 0 ) {
     { 
       stky_i **p = eb;
@@ -154,6 +161,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
     }
     fprintf(stderr, "\n");
   }
+#endif
 
 #define ISN(name) goto next_isn; case isn_##name: L_##name
   switch ( (int) *(pc ++) ) {
@@ -237,7 +245,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
       stacky_array *a = Vt(0,stacky_array*);
       V(0) = *(a->p = a->b + -- a->l); }
   ISN(dict_new): {
-      stacky_dict *d = malloc(sizeof(*d));
+      stacky_dict *d = stky_malloc(sizeof(*d));
       stacky_array_init(Y, (stacky_array*) d, sizeof(stky_v), 8);
       d->a.o.type = stky_t(dict);
       d->eq = V(0);
@@ -293,7 +301,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
         POP();
         str = (void*) stacky_array_dup(Y, (void*) str);
         str->p[str->l] = 0;
-        sym = malloc(sizeof(*sym));
+        sym = stky_malloc(sizeof(*sym));
         sym->o.type = stky_t(symbol);
         sym->name = str;
         PUSH(Y->sym_dict); PUSH(str); PUSH(sym); CALLISN(isn_dict_set);
@@ -372,7 +380,10 @@ stky_v stacky_pop(stacky *Y)
 
 stacky *stacky_new()
 {
-  stacky *Y = malloc(sizeof(*Y));
+  stacky *Y;
+
+  GC_init();
+  Y = stky_malloc(sizeof(*Y));
   Y->o.type = stky_t(stacky);
   Y->v_stdin  = stdin;
   Y->v_stdout = stdout;
@@ -415,7 +426,7 @@ stacky *stacky_new()
     for ( i = 0; isn_table[i].name; ++ i ) {
       char name[32] = { 0 };
       stky_i e_isn_[] = { isn_hdr, isn_table[i].isn, isn_rtn, isn_END };
-      stky_i *e_isn = memcpy(malloc(sizeof(e_isn_)), e_isn_, sizeof(e_isn_));
+      stky_i *e_isn = memcpy(stky_malloc(sizeof(e_isn_)), e_isn_, sizeof(e_isn_));
       stky_i e[] = {
         isn_dict_stack_top,
         isn_sym_charP, (stky_i) isn_table[i].isn_sym,

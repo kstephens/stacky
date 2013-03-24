@@ -3,6 +3,10 @@ CFLAGS += -g
 CFLAGS += -Iinclude
 CFLAGS += -O3
 
+CFLAGS += -I/opt/local/include
+LDFLAGS += -L/opt/local/lib
+LDFLAGS += -lgc
+
 LIB = src/libstacky.a
 LIB_C := $(shell ls src/*.c)
 LIB_O = $(LIB_C:.c=.o)
