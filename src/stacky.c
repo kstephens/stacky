@@ -20,6 +20,27 @@ stacky *stacky_isn(stacky *Y, word_t isn)
   return stacky_call(Y, expr);
 }
 
+array *stacky_array_init(stacky *Y, array *a, size_t es, size_t s)
+{
+  a->p = a->b = malloc((a->es = es) * (a->s = s));
+  memset(a->b, 0, a->s * a->es);
+  a->l = 0;
+  return a;
+}
+
+stacky *stacky_array_resize(stacky *Y, array *a, size_t s)
+{
+  word_t *nb;
+  // fprintf(stderr, "  array %p b:s %p:%lu p:l %p:%lu\n", a, a->b, (unsigned long) a->s, a->p, (unsigned long) a->l);  
+  nb = realloc(a->b, a->es * s);
+  a->s = s;
+  if ( a->l > a->s ) a->l = a->s;
+  a->p = nb + (a->p - a->b);
+  a->b = nb;
+  // fprintf(stderr, "  array %p b:s %p:%lu p:l %p:%lu\n\n", a, a->b, (unsigned long) a->s, a->p, (unsigned long) a->l);  
+  return Y;
+}
+
 stacky *stacky_call(stacky *Y, word_t *pc)
 {
   word_t  *vp = Y->vs.p,  *ve = Y->vs.b + Y->vs.s;
@@ -28,11 +49,9 @@ stacky *stacky_call(stacky *Y, word_t *pc)
 #define PUSH(X) do {                                                  \
     word_t __tmp = (word_t) (X);                                      \
     if ( ++ vp >= ve ) {                                              \
-      Y->vs += 1024;                                                  \
-      word_t *nvb = realloc(Y->vb, sizeof(Y->vb[0] * Y->vs));         \
-      vp = (vp - Y->vb) + nvb;                                        \
-      Y->vb = nvb;                                                    \
-      ve = nvb + Y->vs;                                               \
+      Y->vs.p = vp;                                                   \
+      stacky_array_resize(Y, &Y->vs, Y->vs.s + 1024);                 \
+      vp = Y->vs.p; ve = Y->vs.b + Y->vs.s;                           \
     }                                                                 \
     *vp = __tmp;                                                      \
   } while(0)
@@ -41,12 +60,18 @@ stacky *stacky_call(stacky *Y, word_t *pc)
 #define POPN(N) vp -= (N)
 #define V(i) vp[- (i)]
 #define Vt(i,t) (*((t*) (vp - (i))))
-#define CALLISN(I) do {                         \
-    -- Y->trace; Y->vp = vp;                    \
-    stacky_isn(Y, (I));                         \
-    vp = Y->vp; ++ Y->trace;                    \
+#define CALLISN(I) do {                           \
+    -- Y->trace;                                  \
+    Y->vs.p = vp;                                 \
+    stacky_isn(Y, (I));                           \
+    vp = Y->vs.p; ve = Y->vs.b + Y->vs.s;         \
+    ++ Y->trace;                                  \
   } while (0)
-#define CALL(E) do { Y->vp = vp; stacky_call(Y, (E)); vp = Y->vp; } while (0)
+#define CALL(E) do {                            \
+    Y->vp = vp;                                 \
+    stacky_call(Y, (E));                        \
+    vp = Y->vp; ve = Y->vs.b + Y->vs.s;         \
+  } while (0)
 
   if ( ! isn_table[0].addr ) {
     struct isn_def *isn;
@@ -156,13 +181,7 @@ stacky *stacky_call(stacky *Y, word_t *pc)
   ISN(c_free):    free(Vt(0,voidP)); POP();
   ISN(c_memmove): memmove(Vt(2,voidP), Vt(1,voidP), Vt(0,size_t)); POPN(3);
   ISN(array_new): {
-      array *a = malloc(sizeof(*a));
-      a->l = 0;
-      a->s = Vt(0,size_t);
-      a->es = sizeof(word_t);
-      a->p = malloc(a->s * a->es);
-      memset(a->p, 0, a->s * a->es);
-      Vt(0,arrayP) = a;
+      Vt(0,arrayP) = stacky_array_init(Y, malloc(sizeof(array)), sizeof(word_t), Vt(0,size_t));
     }
   ISN(array_ptr):  Vt(0,voidP)  = Vt(0,arrayP)->b;
   ISN(array_len):  Vt(0,size_t) = Vt(0,arrayP)->l;
@@ -171,10 +190,9 @@ stacky *stacky_call(stacky *Y, word_t *pc)
   ISN(array_set):  Vt(2,arrayP)->b[V(1)] = V(0); POPN(2);
   ISN(array_push): {
       array *a = Vt(1,arrayP);
-      if ( a->l >= a->s ) {
-        a->p = realloc(a->p, (++ a->s) * a->es);
-      }
-      a->p[a->l ++] = V(0);
+      if ( a->l >= a->s )
+        stacky_array_resize(Y, a, a->l + 1);
+      *(a->p = a->b + a->l ++) = V(0);
       POP();
     }
   ISN(array_pop): {
@@ -183,12 +201,8 @@ stacky *stacky_call(stacky *Y, word_t *pc)
     }
   ISN(dict_new): {
       dict *d = malloc(sizeof(*d));
+      stacky_array_init(Y, (array*) d, sizeof(word_t), 8);
       d->eq = V(0);
-      d->l = 0;
-      d->s = 8;
-      d->es = sizeof(word_t);
-      d->p = malloc(d->s * d->es);
-      memset(d->p, 0, d->s * d->es);
       // fprintf(stderr, "  dict_new %lld\n", (long long) d);
       Vt(0,dictP) = d;
     }
@@ -196,11 +210,8 @@ stacky *stacky_call(stacky *Y, word_t *pc)
       dict *d = Vt(2,dictP);
       word_t k = V(1), v = V(0);
       size_t i = 0;
-      while ( i < d->l ) {
-        PUSH(k);
-        PUSH(d->p[i]);
-        PUSH(d->eq);
-        CALLISN(isn_call);
+      while ( i < d->a.l ) {
+        PUSH(k); PUSH(d->a.b[i]); PUSH(d->eq); CALLISN(isn_call);
         if ( V(0) ) {
           POP();
           V(2) = d->a.b[i + 1];
@@ -217,11 +228,8 @@ stacky *stacky_call(stacky *Y, word_t *pc)
       dict *d = Vt(2,dictP);
       word_t k = V(1), v = V(0);
       size_t i = 0;
-      while ( i < d->l ) {
-        PUSH(k);
-        PUSH(d->p[i]);
-        PUSH(d->eq);
-        CALLISN(isn_call);
+      while ( i < d->a.l ) {
+        PUSH(k); PUSH(d->a.b[i]); PUSH(d->eq); CALLISN(isn_call);
         if ( V(0) ) {
           POP();
           d->a.b[i + 1] = V(0);
@@ -330,14 +338,9 @@ stacky *stacky_new()
   Y->v_stdout = (word_t) stdout;
   Y->v_stderr = (word_t) stderr;
 
-  Y->vs = 1024;
-  Y->vb = malloc(sizeof(Y->vb[0]) * Y->vs);
-  Y->vp = Y->vb - 1;
-  *(++ Y->vp) = 0;
-  
-  Y->es = 1024;
-  Y->eb = malloc(sizeof(Y->eb[0]) * Y->es);
-  Y->ep = Y->eb;
+  stacky_array_init(Y, &Y->vs, sizeof(word_t), 1024);
+  *(Y->vs.p) = 0;
+  stacky_array_init(Y, &Y->es, sizeof(void**), 1024);
 
   {
     static word_t e_eq_charP[] = { isn_eq_charP, isn_rtn, isn_END };

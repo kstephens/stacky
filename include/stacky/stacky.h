@@ -11,14 +11,13 @@ typedef char *charP;
 typedef unsigned char *ucharP;
 
 typedef struct array {
-  word_t *p;
+  word_t *b, *p;
   word_t l, s, es;
 } array;
 typedef array *arrayP;
 
 typedef struct dict {
-  word_t *p;
-  word_t l, s, es;
+  array a;
   word_t eq;
 } dict;
 typedef dict *dictP;
@@ -26,8 +25,7 @@ typedef dict *dictP;
 #include "isn.h"
 
 typedef struct stacky {
-  word_t  *vb,  *vp; size_t vs;
-  word_t **eb, **ep; size_t es;
+  array vs, es;
   word_t trace, threaded_comp;
   word_t v_stdin, v_stdout, v_stderr;
   dict *ident_dict;
