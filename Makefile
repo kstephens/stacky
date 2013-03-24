@@ -19,10 +19,13 @@ $(LIB) : $(LIB_O)
 $(T_T) : $(LIB)
 
 test: $(T_T)
-	@set -e; for t in $(T_T); do \
-	  (set +e; echo "+ $$t" ; $$t ; echo "exit($$?)") | tee $$t.out ;\
-	  diff -u $$t.exp $$t.out ;\
+	@for t in $(T_T); do \
+	  (echo "+ $$t" ; $$t ; echo "exit($$?)") | tee $$t.out ;\
 	done
+	@error=0; for t in $(T_T); do \
+	  diff -u $$t.exp $$t.out || error=1 ;\
+	done ; exit $$error
+	@echo test: OK
 
 clean:
 	rm -f src/*.o src/lib*.a t/*.t t/*.dSYM
