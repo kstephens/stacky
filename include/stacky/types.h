@@ -1,0 +1,11 @@
+TYPE(null,0)
+TYPE(int,1)
+TYPE(char,2)
+TYPE(ref,3)
+TYPE(stacky,4)
+TYPE(type,5)
+TYPE(string,6)
+TYPE(array,7)
+TYPE(dict,8)
+TYPE(symbol,9)
+#undef TYPE

@@ -1,7 +1,7 @@
 CC = clang
 CFLAGS += -g
 CFLAGS += -Iinclude
-# CFLAGS += -O3
+CFLAGS += -O3
 
 LIB = src/libstacky.a
 LIB_C := $(shell ls src/*.c)
@@ -23,6 +23,9 @@ $(LIB_O) : $(INCLUDE_H)
 
 $(T_T) : $(LIB)
 # $(T_T) :: $(INCLUDE_H)
+
+%.s : %.c
+	$(CC) $(CFLAGS) -S -o $@ $(@:.s=.c)
 
 test: $(T_T)
 	@for t in $(T_T); do \
