@@ -83,6 +83,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
 #define POPN(N) vp -= (N)
 #define V(i) vp[- (i)]
 #define Vt(i,t) (*((t*) (vp - (i))))
+#define Vi(i) stky_v_int_(V(i))
 #define CALLISN(I) do {                           \
     -- Y->trace;                                  \
     Y->vs.p = vp;                                 \
@@ -169,13 +170,13 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
       stacky_string *a = V(1), *b = V(0);
       V(1) = stky_v_int(a == b || (a->l == b->l && ! memcmp(a->b, b->b, a->l))); 
       POP(); }
-  ISN(vget):  V(0) = V(stky_v_int_(V(0)));
-  ISN(vset):  V(stky_v_int_(V(1))) = V(0); POPN(2);
+  ISN(vget):  V(0) = V(Vi(0));
+  ISN(vset):  V(Vi(1)) = V(0); POPN(2);
   ISN(dup):   PUSH(V(0));
   ISN(pop):   POP();
   ISN(swap):  { stky_v tmp = V(0); V(0) = V(1); V(1) = tmp; }
-#define BOP(name, op) ISN(name): V(1) = stky_v_int(stky_v_int_(V(1)) op stky_v_int_(V(0))); POP();
-#define UOP(name, op) ISN(name): V(0) = stky_v_int(op stky_v_int_(V(0)));
+#define BOP(name, op) ISN(name): V(1) = stky_v_int(Vi(1) op Vi(0)); POP();
+#define UOP(name, op) ISN(name): V(0) = stky_v_int(op Vi(0));
 #include "stacky/cops.h"
   ISN(ifelser):
     pc += 2;
@@ -185,7 +186,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
     pc -= 2;
     goto L_ifelse;
   ISN(ifelse):
-    if ( stky_v_int_(V(0)) ) {
+    if ( Vi(0) ) {
       POP(); pc = ((stky_i**) pc)[0];
     } else {
       POP(); pc = ((stky_i**) pc)[1];
@@ -201,7 +202,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
   ISN(v_stdout): PUSH(Y->v_stdout);
   ISN(v_stderr): PUSH(Y->v_stderr);
   ISN(write_int):
-    fprintf(Vt(0,FILE*), "%lld", (long long) stky_v_int_(V(1))); POPN(2);
+    fprintf(Vt(0,FILE*), "%lld", (long long) Vi(1)); POPN(2);
   ISN(write_char):
     fprintf(Vt(0,FILE*), "%c", (int) stky_v_char_(V(1))); POPN(2);
   ISN(write_symbol): {
@@ -212,19 +213,20 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
       fwrite(s->b, 1, s->l, Vt(0,FILE*)); POPN(2); }
   ISN(write_voidP):
     fprintf(Vt(0,FILE*), "@%p", Vt(1,voidP)); POPN(2);
-  ISN(c_malloc):  Vt(0,voidP) = malloc(stky_v_int_(V(0)));
-  ISN(c_realloc): Vt(1,voidP) = realloc(Vt(1,voidP), stky_v_int_(V(0))); POP();
+  ISN(c_malloc):  Vt(0,voidP) = malloc(Vi(0));
+  ISN(c_realloc): Vt(1,voidP) = realloc(Vt(1,voidP), Vi(0)); POP();
   ISN(c_free):    free(Vt(0,voidP)); POP();
-  ISN(c_memmove): memmove(Vt(2,voidP), Vt(1,voidP), stky_v_int_(V(0))); POPN(3);
-  ISN(v_tag):       V(0) = stky_v_int(stky_v_tag(V(0)));
-  ISN(v_type):      V(0) = stky_v_type(V(0));
-  ISN(array_new): {
-      Vt(0,stacky_arrayP) = stacky_array_init(Y, malloc(sizeof(stacky_array)), sizeof(stky_v), stky_v_int_(V(0))); }
+  ISN(c_memmove): memmove(Vt(2,voidP), Vt(1,voidP), Vi(0)); POPN(3);
+  ISN(v_tag):     V(0) = stky_v_int(stky_v_tag(V(0)));
+  ISN(v_type):    V(0) = stky_v_type(V(0));
+  ISN(array_new):
+      Vt(0,stacky_arrayP) =
+        stacky_array_init(Y, stky_malloc(sizeof(stacky_array)), sizeof(stky_v), Vi(0));
   ISN(array_ptr):  V(0) = Vt(0,stacky_arrayP)->b;
   ISN(array_len):  V(0) = stky_v_int(Vt(0,stacky_arrayP)->l);
   ISN(array_size): V(0) = stky_v_int(Vt(0,stacky_arrayP)->s);
-  ISN(array_get):  V(1) = Vt(1,stacky_arrayP)->b[stky_v_int_(V(0))]; POP();
-  ISN(array_set):  Vt(2,stacky_arrayP)->b[stky_v_int_(V(1))] = V(0); POPN(2);
+  ISN(array_get):  V(1) = Vt(1,stacky_arrayP)->b[Vi(0)]; POP();
+  ISN(array_set):  Vt(2,stacky_arrayP)->b[Vi(1)] = V(0); POPN(2);
   ISN(array_push): {
       stacky_array *a = Vt(1,stacky_arrayP);
       if ( a->l >= a->s )
@@ -248,7 +250,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
       size_t i = 0;
       while ( i < d->a.l ) {
         PUSH(k); PUSH(d->a.b[i]); PUSH(d->eq); CALLISN(isn_call);
-        if ( stky_v_int_(V(0)) ) {
+        if ( Vi(0) ) {
           POP();
           V(2) = d->a.b[i + 1];
           goto dict_get_done;
@@ -266,7 +268,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
       size_t i = 0;
       while ( i < d->a.l ) {
         PUSH(k); PUSH(d->a.b[i]); PUSH(d->eq); CALLISN(isn_call);
-        if ( stky_v_int_(V(0)) ) {
+        if ( Vi(0) ) {
           POP();
           d->a.b[i + 1] = V(0);
           POPN(2);
