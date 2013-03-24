@@ -72,7 +72,7 @@ typedef struct stacky {
   stacky_array vs, es;
   stky_i trace, threaded_comp;
   stky_v v_stdin, v_stdout, v_stderr;
-  stacky_dict *ident_dict;
+  stacky_dict *sym_dict;
   stacky_array *dict_stack;
   stacky_type types[stky_t_END];
 #define stky_t(name) (Y->types + stky_t_##name)

@@ -1,7 +1,7 @@
 + t/test2.t
 @%eq @%eq %eq = 1
 @%eq @%eq %eq = 1
- ident: foo
- ident: foo
- ident: foo
+ sym: foo
+ sym: foo
+ sym: foo
 exit(0)

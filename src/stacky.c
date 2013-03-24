@@ -4,7 +4,7 @@ struct isn_def {
   stky_i isn;
   int nwords;
   const char *name;
-  const char *isn_ident;
+  const char *isn_sym;
   void *addr;
 };
 
@@ -141,7 +141,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
         fprintf(stderr, "%p ", (void*) pc[1]); break;
       case isn_lit_int:
         fprintf(stderr, "%lld ", (long long) pc[1]); break;
-      case isn_lit_charP: case isn_ident_charP:
+      case isn_lit_charP: case isn_sym_charP:
         fprintf(stderr, "\"%s\" ", (char*) pc[1]); break;
       case isn_ifelse:
         fprintf(stderr, "@%p @%p ", (void*) pc[1], (void*) pc[2]); break;
@@ -281,12 +281,12 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
     dict_set_done:
       (void) 0;
     }
-  ISN(ident): {
+  ISN(sym): {
       stacky_string *str = V(0); stacky_symbol *sym;
-      PUSH(Y->ident_dict); PUSH(str); PUSH(0); CALLISN(isn_dict_get);
+      PUSH(Y->sym_dict); PUSH(str); PUSH(0); CALLISN(isn_dict_get);
       if ( V(0) ) {
         V(1) = sym = V(0); POP();
-        // fprintf(stderr, "  ident @%p %s \n", sym, str->b);
+        // fprintf(stderr, "  sym @%p %s \n", sym, str->b);
       } else {
         POP();
         str = (void*) stacky_array_dup(Y, (void*) str);
@@ -294,15 +294,15 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
         sym = malloc(sizeof(*sym));
         sym->o.type = stky_t(symbol);
         sym->name = str;
-        PUSH(Y->ident_dict); PUSH(str); PUSH(sym); CALLISN(isn_dict_set);
+        PUSH(Y->sym_dict); PUSH(str); PUSH(sym); CALLISN(isn_dict_set);
         V(1) = sym; POP();
-        // fprintf(stderr, "  ident @%p %s NEW \n", sym, str->b);
+        // fprintf(stderr, "  sym @%p %s NEW \n", sym, str->b);
       }
     }
-  ISN(ident_charP): {
+  ISN(sym_charP): {
       char *str = (void*) *(pc ++);
       stacky_string *s = stky_string_new_charP(Y, str, -1LL);
-      PUSH(s); CALLISN(isn_ident);
+      PUSH(s); CALLISN(isn_sym);
       pc[-2] = isn_lit;
       pc[-1] = (stky_i) V(0);
     }
@@ -393,7 +393,7 @@ stacky *stacky_new()
   {
     static stky_i e_eq_string[] = { isn_string_eq, isn_rtn, isn_END };
     static stky_i e[] = { isn_lit_voidP, (stky_i) e_eq_string, isn_dict_new, isn_rtn, isn_END }; 
-    Y->ident_dict = stacky_pop(stacky_call(Y, e));
+    Y->sym_dict = stacky_pop(stacky_call(Y, e));
   }
   { 
     static stky_i e[] = { isn_lit_int, 0, isn_array_new, isn_rtn, isn_END };
@@ -416,7 +416,7 @@ stacky *stacky_new()
       stky_i *e_isn = memcpy(malloc(sizeof(e_isn_)), e_isn_, sizeof(e_isn_));
       stky_i e[] = {
         isn_dict_stack_top,
-        isn_ident_charP, (stky_i) isn_table[i].isn_ident,
+        isn_sym_charP, (stky_i) isn_table[i].isn_sym,
         isn_lit_voidP, (stky_i) e_isn,
         isn_dict_set, isn_pop,
         isn_rtn, isn_END };
