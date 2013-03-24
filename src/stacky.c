@@ -142,12 +142,15 @@ stacky *stacky_call(stacky *Y, word_t *pc)
     pc = (word_t*) pc[-1];
   ISN(jmp):
     pc = (word_t*) pc[0];
+  ISN(v_stdin):  PUSH(Y->v_stdin);
+  ISN(v_stdout): PUSH(Y->v_stdout);
+  ISN(v_stderr): PUSH(Y->v_stderr);
   ISN(write_int):
-    fprintf(stdout, "%lld", (long long) V(0)); POP();
+    fprintf(Vt(0,FILE*), "%lld", (long long) V(1)); POPN(2);
   ISN(write_charP):
-    fprintf(stdout, "%s", Vt(0,charP)); POP();
+    fprintf(Vt(0,FILE*), "%s", Vt(1,charP)); POPN(2);
   ISN(write_voidP):
-    fprintf(stdout, "@%p", Vt(0,voidP)); POP();
+    fprintf(Vt(0,FILE*), "@%p", Vt(1,voidP)); POPN(2);
   ISN(c_malloc):  Vt(0,voidP) = malloc(V(0));
   ISN(c_realloc): Vt(1,voidP) = realloc(Vt(1,voidP), V(0)); POP();
   ISN(c_free):    free(Vt(0,voidP)); POP();
@@ -322,9 +325,12 @@ word_t stacky_pop(stacky *Y)
 
 stacky *stacky_new()
 {
-  stacky *Y = malloc(sizeof(*Y));
   static word_t e_eq[] = { isn_hdr, isn_eq, isn_rtn, isn_END };
   static word_t e_eq_charP[] = { isn_eq_charP, isn_rtn, isn_END };
+  stacky *Y = malloc(sizeof(*Y));
+  Y->v_stdin = (word_t) stdin;
+  Y->v_stdout = (word_t) stdout;
+  Y->v_stderr = (word_t) stderr;
 
   Y->vs = 1024;
   Y->vb = malloc(sizeof(Y->vb[0]) * Y->vs);
