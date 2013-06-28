@@ -46,7 +46,7 @@ stacky_string *stky_string_new_charP(stacky *Y, char *p, size_t s)
 {
   stacky_string *o;
   if ( ! p ) return 0;
-  if ( s == -1LL ) s = strlen(p);
+  if ( s == (size_t) -1 ) s = strlen(p);
   o = stky_malloc(sizeof(*o));
   stacky_array_init(Y, (void*) o, 1, s + 1);
   o->o.type = stky_t(string);
