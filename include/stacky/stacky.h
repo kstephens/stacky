@@ -14,10 +14,12 @@ typedef ssize_t stky_i;
 
 typedef struct stacky_object {
   stky_v type;
+  stky_i flags;
 } stacky_object;
 
 typedef struct stacky_type {
   stacky_object o;
+  stky_i i;
   const char *name;
 } stacky_type;
 
@@ -72,15 +74,19 @@ typedef struct stacky {
   stacky_array vs, es;
   stky_i trace, threaded_comp;
   stky_v v_stdin, v_stdout, v_stderr;
+  stky_v v_mark;
   stacky_dict *sym_dict;
   stacky_array *dict_stack;
   stacky_type types[stky_t_END];
 #define stky_t(name) (Y->types + stky_t_##name)
 } stacky;
+#define stky_v_mark (Y)->v_mark
 
 stacky *stacky_new();
 stacky *stacky_isn(stacky *Y, stky_i isn);
 stacky *stacky_call(stacky *Y, stky_i *expr);
 stky_v stacky_pop(stacky *Y);
+
+stky_v stky_read_token(stacky *Y, FILE *in);
 
 #endif
