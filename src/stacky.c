@@ -174,7 +174,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
     }
     fprintf(stderr, "  # P: @%p\n", (void*) pc);
     if ( *pc <= isn_END ) {
-      fprintf(stderr, "  # I: %s ", isn_table[*pc].name);
+      fprintf(stderr, "  # I: %s ", isn_table[stky_v_int_(*pc)].name);
       switch ( *pc ) {
       case isn_lit: case isn_lit_voidP:
         fprintf(stderr, "%p ", (void*) pc[1]); break;

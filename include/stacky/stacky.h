@@ -10,6 +10,7 @@ typedef char *charP;
 typedef unsigned char *ucharP;
 
 typedef void *stky_v;
+typedef size_t stky_si;
 typedef ssize_t stky_i;
 
 typedef struct stacky_object {
@@ -49,19 +50,27 @@ typedef struct stacky_dict {
 } stacky_dict;
 typedef stacky_dict *stacky_dictP;
 
-#include "isn.h"
+typedef struct stacky_literal {
+  stacky_object o;
+  stky_v value;
+} stacky_literal;
+typedef stacky_literal *stacky_literalP;
 
 #define stky_v_bits 2
 #define stky_v_mask 3
 #define stky_v_tag(V)  (((stky_i) (V)) & 3)
 #define stky_v_type(V)                                         \
   ( ! (V) ? Y->types + stky_t_null :                           \
-    ! stky_v_tag(V) ? *(stky_v*)(V) :                          \
+    ! stky_v_tag(V) ? *(stacky_type**)(V) :                     \
     Y->types + stky_v_tag(V) )
+#define stky_v_type_i(V) stky_v_type(V)->i
+#define _stky_v_int(X)                       (((X) << 2) | 1)
 #define stky_v_int(X)   ((stky_v) ((((stky_i) (X)) << 2) | 1))
 #define stky_v_int_(V)  (((stky_i) (V)) >> 2)
-#define stky_v_char(X)  ((stky_v) ((((stky_i) (X)) << 2) | 2))
-#define stky_v_char_(V) (((stky_i) (V)) >> 2)
+#define stky_v_char(X)  ((stky_v) ((((stky_si) (X)) << 2) | 2))
+#define stky_v_char_(V) (((stky_si) (V)) >> 2)
+
+#include "isn.h"
 
 enum stky_type_e {
 #define TYPE(name,ind) stky_t_##name = ind,
