@@ -8,4 +8,7 @@ TYPE(string,6)
 TYPE(array,7)
 TYPE(dict,8)
 TYPE(symbol,9)
+TYPE(literal,10)
+TYPE(bytes,12)
+TYPE(words,11)
 #undef TYPE

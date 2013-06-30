@@ -14,15 +14,23 @@ typedef size_t stky_si;
 typedef ssize_t stky_i;
 
 typedef struct stacky_object {
-  stky_v type;
+  struct stacky_type *type;
   stky_i flags;
+  stky_i size;
 } stacky_object;
 
 typedef struct stacky_type {
   stacky_object o;
-  stky_i i;
+  stky_i i;         // stky_t_*; index in Y->types[].
   const char *name;
 } stacky_type;
+
+typedef struct stacky_bytes {
+  stacky_object o;
+  void *b, *p;
+  stky_i l, s, es;
+} stacky_bytes;
+typedef stacky_bytes *stacky_bytesP;
 
 typedef struct stacky_array {
   stacky_object o;
@@ -37,6 +45,13 @@ typedef struct stacky_string {
   stky_i l, s, es;
 } stacky_string;
 typedef stacky_string *stacky_stringP;
+
+typedef struct stacky_words {
+  stacky_object o;
+  stky_i *b, *p;
+  stky_i l, s, es;
+} stacky_words;
+typedef stacky_words *stacky_wordsP;
 
 typedef struct stacky_symbol {
   stacky_object o;
