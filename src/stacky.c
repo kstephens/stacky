@@ -748,12 +748,15 @@ stacky *stacky_new()
   Y->v_mark = (void*) stky_string_new_charP(Y, "[", 1);
   ((stacky_object *) Y->v_mark)->type = stky_t(mark);
 
-#define TYPE(NAME,IND)                           \
-  Y->types[IND].o.type = stky_t(type);           \
-  Y->types[IND].o.size = sizeof(stacky_type);    \
-  Y->types[IND].i = IND;                         \
-  Y->types[IND].name = #NAME;
+  {
+    stacky_type *t;
+#define TYPE(NAME,IND)                                          \
+    t = &Y->types[IND];                                         \
+    stky_object_init(Y, t, stky_t(type), sizeof(*t));           \
+    t->i = IND;                                                 \
+    t->name = #NAME;
 #include "stacky/types.h"
+  }
 
   stky_object_init(Y, &Y->vs, stky_t(array), sizeof(Y->vs));
   stacky_array_init(Y, &Y->vs, 1024);
