@@ -741,6 +741,7 @@ stacky *stacky_new()
 
   GC_init();
   Y = stky_object_new(Y, stky_t(stacky), sizeof(*Y));
+  Y->o.type = stky_t(stacky);
   Y->v_stdin  = stdin;
   Y->v_stdout = stdout;
   Y->v_stderr = stderr;
