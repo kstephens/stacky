@@ -523,6 +523,7 @@ enum {
     s_eos = -1,
     s_stop = 0,
     s_start,
+    s_comment_eol,
     s_word,
     s_word_lit,
     s_pot_num,
@@ -571,6 +572,7 @@ stky_v stky_read_token(stacky *Y, FILE *in)
     case EOF: last_state_2 = s_eos; next_s(s_eos);
     case ' ': case '\t': case '\n': case '\r':
       next_c();
+    case '#': c = -2; next_s(s_comment_eol);
     case '/':
       word_lit = 1; c = -2; next_s(s_word);
     case 'a' ... 'z': case 'A' ... 'Z': case '_':
@@ -591,6 +593,15 @@ stky_v stky_read_token(stacky *Y, FILE *in)
       value = stky_v_char(c); c = -2; next_s(s_stop);
     default:
       next_s(s_error);
+    }
+  case s_comment_eol:
+    switch ( c ) {
+    case '\n':
+      c = -2; next_s(s_start);
+    case EOF:
+      next_s(s_start);
+    default:
+      next_c();
     }
   case s_word:
     switch ( c ) {
