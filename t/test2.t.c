@@ -4,10 +4,10 @@ int main(int argc, char **argv)
 {
   stacky *Y = stacky_new();
   {
-    char eq1[] = "%eq", eq2[] = "%eq", eq3[] = "%eq";
+    char eq1[] = "&eq", eq2[] = "&eq", eq3[] = "&eq";
     stky_i e[] = {
       isn_hdr,
-      isn_lit_charP, (stky_i) "@%eq @%eq %eq = ", isn_v_stdout, isn_write_string,
+      isn_lit_charP, (stky_i) "@&eq @&eq &eq = ", isn_v_stdout, isn_write_string,
       isn_sym_charP, (stky_i) eq1,
       isn_sym_charP, (stky_i) eq2,
       isn_sym_charP, (stky_i) eq3, isn_lookup, isn_call,

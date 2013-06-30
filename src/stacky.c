@@ -273,6 +273,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
 
 #define ISN(name) goto next_isn; case isn_##name: L_##name
   switch ( (int) *(pc ++) ) {
+// #include "isns.c"
   ISN(nul):   abort();
   ISN(hdr):
   ISN(hdr_):

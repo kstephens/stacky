@@ -112,5 +112,6 @@ stacky *stacky_call(stacky *Y, stky_i *expr);
 stky_v stacky_pop(stacky *Y);
 
 stky_v stky_read_token(stacky *Y, FILE *in);
+stacky *stky_repl(stacky *Y, FILE *in, FILE *out);
 
 #endif
