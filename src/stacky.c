@@ -744,7 +744,8 @@ stacky *stacky_new()
   Y->v_stdin  = stdin;
   Y->v_stdout = stdout;
   Y->v_stderr = stderr;
-  Y->v_mark = stky_string_new_charP(Y, "[", -1);
+  Y->v_mark = (void*) stky_string_new_charP(Y, "[", 1);
+  ((stacky_object *) Y->v_mark)->type = stky_t(mark);
 
 #define TYPE(NAME,IND)                           \
   Y->types[IND].o.type = stky_t(type);           \
