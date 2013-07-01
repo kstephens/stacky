@@ -1,15 +1,16 @@
-TYPE(null,0)
-TYPE(int,1)
-TYPE(char,2)
-TYPE(ref,3)
-TYPE(stacky,4)
-TYPE(type,5)
-TYPE(string,6)
-TYPE(array,7)
-TYPE(dict,8)
-TYPE(symbol,9)
-TYPE(literal,10)
-TYPE(bytes,11)
-TYPE(words,12)
-TYPE(mark,13)
+TYPE(null)  /* tag: 0 */
+TYPE(int)   /* tag: 1 */
+TYPE(char)  /* tag: 2 */
+TYPE(isn)   /* tag: 3 */
+TYPE(stacky)
+TYPE(type)
+TYPE(string)
+TYPE(array)
+TYPE(dict)
+TYPE(symbol)
+TYPE(literal)
+TYPE(bytes)
+TYPE(words)
+TYPE(mark)
+TYPE(ref)
 #undef TYPE

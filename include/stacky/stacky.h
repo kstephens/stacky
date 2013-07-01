@@ -50,6 +50,7 @@ typedef struct stacky_words {
   stacky_object o;
   stky_i *b, *p;
   stky_i l, s, es;
+  const char *name;
 } stacky_words;
 typedef stacky_words *stacky_wordsP;
 
@@ -79,16 +80,21 @@ typedef stacky_literal *stacky_literalP;
     ! stky_v_tag(V) ? *(stacky_type**)(V) :                     \
     Y->types + stky_v_tag(V) )
 #define stky_v_type_i(V) stky_v_type(V)->i
-#define _stky_v_int(X)                       (((X) << 2) | 1)
-#define stky_v_int(X)   ((stky_v) ((((stky_i) (X)) << 2) | 1))
-#define stky_v_int_(V)  (((stky_i) (V)) >> 2)
+#define _stky_v_int(X)                       (((X)  << 2) | 1)
+#define stky_v_int(X)   ((stky_v) ((((stky_i ) (X)) << 2) | 1))
+#define stky_v_int_(V)              (((stky_i) (V)) >> 2)
 #define stky_v_char(X)  ((stky_v) ((((stky_si) (X)) << 2) | 2))
-#define stky_v_char_(V) (((stky_si) (V)) >> 2)
+#define stky_v_char_(V)            (((stky_si) (V)) >> 2)
+#define stky_v_isnQ(V) (stky_v_tag(V) == stky_t_tag)
+#define _stky_v_isn(X)                       (((X)  << 2) | 3)
+#define stky_v_isn(X)               ((stky_v)  (X))
+#define stky_v_isn_(V)              ((stky_si) (V))
 
 #include "isn.h"
 
 enum stky_type_e {
-#define TYPE(name,ind) stky_t_##name = ind,
+#define TYPE(name) stky_t_##name,
+  styk_t_BEGIN = -1,
 #include "stacky/types.h"
   stky_t_END
 };
@@ -98,20 +104,31 @@ typedef struct stacky {
   stacky_array vs, es;
   stky_i trace, threaded_comp;
   stky_v v_stdin, v_stdout, v_stderr;
-  stky_v v_mark;
+  stky_v v_mark, v_lookup_na;
+#define stky_v_mark (Y)->v_mark
   stacky_dict *sym_dict;
   stacky_array *dict_stack;
-  stacky_type types[stky_t_END];
+  stacky_type types[stky_t_END + 1];
 #define stky_t(name) (Y->types + stky_t_##name)
+  stacky_words *isn_words[isn_END + 1];
+#define stky_isn_w(I) ((stky_i) Y->isn_words[I])
+  stky_i in_exec_array;
 } stacky;
-#define stky_v_mark (Y)->v_mark
 
 stacky *stacky_new();
 stacky *stacky_isn(stacky *Y, stky_i isn);
-stacky *stacky_call(stacky *Y, stky_i *expr);
+
+stacky *stacky_call(stacky *Y, stky_i *pc);
+#define stky_words(Y,WORDS...) \
+  ({ stky_i _words_##__LINE__[] = { isn_hdr, WORDS, isn_END }; stacky_words_new((Y), _words_##__LINE__, sizeof(_words_##__LINE__) / sizeof(stky_i)); })
+#define stky_exec(Y,WORDS...)                                            \
+  ({ stky_i _words_##__LINE__[] = { WORDS, isn_rtn, isn_END }; stacky_call((Y), _words_##__LINE__); })
+
 stky_v stacky_pop(stacky *Y);
 
 stky_v stky_read_token(stacky *Y, FILE *in);
 stacky *stky_repl(stacky *Y, FILE *in, FILE *out);
+
+stacky *stky_write(stacky *Y, stky_v v, FILE *out, int depth);
 
 #endif

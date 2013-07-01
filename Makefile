@@ -1,7 +1,7 @@
 CC = clang
 CFLAGS += -g
 CFLAGS += -Iinclude
-CFLAGS += -O3
+# CFLAGS += -O3
 
 CFLAGS += -I/opt/local/include
 LDFLAGS += -L/opt/local/lib

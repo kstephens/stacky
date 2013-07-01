@@ -1,0 +1,20 @@
+# Comment
+
+&dict_stack_top
+/def
+# k v /def | 
+{ 
+  &dict_stack_top    # k v D |
+  3 &rotl            # v D k |
+  3 &rotl            # D k v |
+  &dict_set &pop     #       |
+}   
+&dict_set &pop
+
+/p {
+  &v_stdout &write
+  "
+" &v_stdout &write
+} def
+
+5 p

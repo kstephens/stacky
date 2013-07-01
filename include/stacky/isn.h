@@ -1,11 +1,11 @@
 enum _isn {
 #define ISN(name,lits) _isn_##name,
 #include "isns.h"
-  _isn_END
+  _isn_END_
 };
 enum isn {
-#define ISN(name,lits) isn_##name = _stky_v_int(_isn_##name),
+#define ISN(name,lits) isn_##name = _stky_v_isn(_isn_##name),
 #include "isns.h"
-  isn_END
+  isn_END_
 };
 
