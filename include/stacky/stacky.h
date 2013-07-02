@@ -113,28 +113,27 @@ enum stky_type_e {
 typedef struct stacky {
   stacky_object o;
   stacky_array vs, es;
-  stky_i trace, threaded_comp;
+  stky_i trace, token_debug, threaded_comp;
   stky_v v_stdin, v_stdout, v_stderr;
   stky_v v_mark, v_marke, v_lookup_na;
-#define stky_v_mark (Y)->v_mark
-#define stky_v_marke (Y)->v_marke
+  stky_v s_mark, s_marke, s_array_tme;
   stacky_dict *sym_dict;
   stacky_array *dict_stack;
+  stacky_dict *dict_0;
   stacky_type types[stky_t_END + 1];
 #define stky_t(name) (Y->types + stky_t_##name)
   stacky_isn isns[isn_END + 1];
 #define stky_isn_w(I) ((stky_i) Y->isns[I].words)
   stky_i defer_eval;
-  stky_i in_exec_array;
 } stacky;
 
 stacky *stacky_new();
 
 stacky *stacky_call(stacky *Y, stky_i *pc);
 #define stky_words(Y,WORDS...) \
-  ({ stky_i _words_##__LINE__[] = { isn_hdr, WORDS, isn_END }; stacky_words_new((Y), _words_##__LINE__, sizeof(_words_##__LINE__) / sizeof(stky_i)); })
+  ({ stky_i _words_##__LINE__[] = { isn_hdr, WORDS, 0 }; stacky_words_new((Y), _words_##__LINE__, sizeof(_words_##__LINE__) / sizeof(stky_i)); })
 #define stky_exec(Y,WORDS...)                                            \
-  ({ stky_i _words_##__LINE__[] = { WORDS, isn_rtn, isn_END }; stacky_call((Y), _words_##__LINE__); })
+  ({ stky_i _words_##__LINE__[] = { WORDS, isn_rtn, 0 }; stacky_call((Y), _words_##__LINE__); })
 
 stky_v stacky_pop(stacky *Y);
 

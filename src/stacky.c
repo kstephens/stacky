@@ -295,55 +295,67 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
 #endif
 
   val = (stky_v) *(pc ++);
- eval:
-  if ( val == Y->v_marke && Y->defer_eval > 0 ) Y->defer_eval --;
-  if ( Y->defer_eval > 0 ) {
-    PUSH(val); goto next_isn;
-  } else {
-#define TYPE(name) goto next_isn; case stky_t_##name: T_##name
-  switch ( stky_v_type_i(val) ) {
-  default:       PUSH(val);
-  TYPE(isn):     goto do_isn;
-  TYPE(string):  PUSH(val);
-  TYPE(literal): PUSH(((stacky_literal*) val)->value);
-  TYPE(symbol):  PUSH(val); stky_exec(Y, isn_lookup, isn_eval);
-  TYPE(array):
-    if ( ((stacky_object*) val)->flags & 1 ) {
-    call_array:
-      CALL(((stacky_array*) val)->p);
-    } else {
-      PUSH(val);
+  eval:
+  switch ( (stky_i) val ) {
+  default:
+    if ( Y->defer_eval > 0 ) {
+      if ( val == Y->s_marke )     Y->defer_eval ++; else
+      if ( val == Y->s_array_tme ) Y->defer_eval --;
     }
-  TYPE(words): 
-    // fprintf(stderr, "  # words @%p ", val); stky_write(Y, val, stderr, 2); fprintf(stderr, "\n");
-    goto call_array;
-  }
+    if ( Y->defer_eval > 0 ) {
+      PUSH(val); goto next_isn;
+    } else {
+#define TYPE(name) goto next_isn; case stky_t_##name: T_##name
+      switch ( stky_v_type_i(val) ) {
+      default:       PUSH(val);
+      TYPE(isn):     abort();
+      TYPE(string):  PUSH(val);
+      TYPE(literal): PUSH(((stacky_literal*) val)->value);
+      TYPE(symbol):  PUSH(val); stky_exec(Y, isn_lookup, isn_eval);
+      TYPE(array):
+        if ( ((stacky_object*) val)->flags & 1 ) {
+        call_array:
+          CALL(((stacky_array*) val)->p);
+        } else {
+          PUSH(val);
+        }
+      TYPE(words):
+        // fprintf(stderr, "  # words @%p ", val); stky_write(Y, val, stderr, 2); fprintf(stderr, "\n");
+        goto call_array;
+      }
 #undef TYPE
-  }
+    }
+    abort();
 
-  do_isn:
-#define ISN(name) goto next_isn; case isn_##name: L_##name
-  switch ( (int) val ) {
   case 0: goto L_rtn;
 // #include "isns.c"
+#define ISN(name) goto next_isn; case isn_##name: L_##name
   ISN(nul):   abort();
   ISN(hdr):
   ISN(hdr_):
   ISN(nop):
   ISN(lit):       PUSH((stky_v) *(pc ++));
   ISN(lit_int):   PUSH(stky_v_int(*(pc ++)));
-  ISN(lit_charP): { stky_v v = stky_string_new_charP(Y, (void*) *(pc ++), -1);
-      pc[-2] = isn_lit; pc[-1] = (stky_i) v; PUSH(v); }
+  ISN(lit_charP):
+    val = stky_string_new_charP(Y, (void*) *(pc ++), -1);
+    pc[-2] = isn_lit; pc[-1] = (stky_i) val;
+    PUSH(val);
   ISN(lit_voidP): PUSHt(*(pc ++),voidP);
+  ISN(eqw): {
+      V(1) = stky_v_int(V(1) == V(0));
+      POP();
+    }
   ISN(string_eq): {
       stacky_string *a = V(1), *b = V(0);
-      V(1) = stky_v_int(a == b || (a->l == b->l && ! memcmp(a->b, b->b, a->l))); 
-      POP(); }
+      POP();
+      V(0) = stky_v_int(a == b || (a->l == b->l && ! memcmp(a->p, b->p, a->l)));
+    }
   ISN(vget):  V(0) = V(Vi(0));
   ISN(vset):  V(Vi(1)) = V(0); POPN(2);
   ISN(dup):   PUSH(V(0));
   ISN(pop):   POP();
-  ISN(swap):  { stky_v tmp = V(0); V(0) = V(1); V(1) = tmp; }
+  ISN(popn):  val = POP(); POPN(stky_v_int_(val));
+  ISN(swap):  val = V(0); V(0) = V(1); V(1) = val;
   ISN(rotl): { 
       size_t n = Vi(0); POP();
       // 3 2 1 0 n | 2 1 0 3 : n = 4
@@ -400,12 +412,13 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
   ISN(v_type):    V(0) = stky_v_type(V(0));
   ISN(cve):       Vt(0, stacky_object*)->flags |= 1;
   ISN(eval):      val = POP(); goto eval;
-  ISN(mark):      PUSH(stky_v_mark);
-  ISN(marke):     PUSH(stky_v_marke); Y->defer_eval ++;
+  ISN(mark):      PUSH(Y->v_mark);
+  ISN(marke):     PUSH(Y->v_marke); Y->defer_eval ++;
   ISN(ctm): {
       size_t n = 0; stky_v *p = vp;
       while ( p >= Y->vs.p ) {
-        if ( *(p --) == stky_v_mark ) break;
+        if ( *p == Y->v_mark || *p == Y->v_marke ) break;
+        -- p;
         ++ n;
       }
       PUSH(stky_v_int(n));
@@ -413,7 +426,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
   ISN(array_stk): {
       size_t as = stky_v_int_(POP());
       stacky_array *a = stacky_array_init(Y, stky_object_new(Y, stky_t(array), sizeof(*a)), as);
-      fprintf(stderr, "   %lu array_stk => @%p\n", as, a);
+      // fprintf(stderr, "   %lu array_stk => @%p\n", as, a);
       memmove(a->p, POPN(a->l = as), sizeof(a->p[0]) * as);
       V(0) = a;
     }
@@ -423,7 +436,6 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
   ISN(array_tm):
       stky_exec(Y, isn_ctm, isn_array_stk, isn_swap, isn_pop);
   ISN(array_tme):
-      PUSH((stky_v) isn_rtn);
       stky_exec(Y, isn_ctm, isn_array_stk, isn_swap, isn_pop, isn_cve);
   ISN(array_b):  V(0) = Vt(0,stacky_arrayP)->b;
   ISN(array_p):  V(0) = Vt(0,stacky_arrayP)->p;
@@ -448,30 +460,30 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
       stacky_dict *d = Vt(2,stacky_dictP);
       stky_v k = V(1), v = V(0);
       size_t i = 0;
-      while ( i < d->a.l ) {
+      while ( i + 1 < d->a.l ) {
         PUSH(k); PUSH(d->a.p[i]); PUSH(d->eq); CALLISN(isn_call);
         if ( Vi(0) ) {
           POP();
-          V(2) = d->a.p[i + 1];
-          goto dict_get_done;
+          v = d->a.p[i + 1];
+          break;
         }
         POP();
         i += 2;
       }
-      V(2) = v;
-    dict_get_done:
+      dict_get_done:
       POPN(2);
-    }
+      V(0) = v;
+      }
   ISN(dict_set): { // dict k v DICT_SET |
       stacky_dict *d = Vt(2,stacky_dictP);
       stky_v k = V(1), v = V(0);
       size_t i = 0;
-      while ( i < d->a.l ) {
+      while ( i + 1 < d->a.l ) {
         PUSH(k); PUSH(d->a.p[i]); PUSH(d->eq); CALLISN(isn_call);
         if ( Vi(0) ) {
           POP();
           d->a.p[i + 1] = V(0);
-          (void) POPN(2);
+          POPN(2);
           goto dict_set_done;
         }
         POP();
@@ -481,7 +493,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
       PUSH(k); CALLISN(isn_array_push);
       PUSH(v); CALLISN(isn_array_push);
     dict_set_done:
-      if ( d != Y->sym_dict ) {
+      if ( 0 && d != Y->sym_dict ) {
         fprintf(stderr, "  dict_set => "); stky_write(Y, d, stderr, 3); fprintf(stderr, "\n");
       }
       (void) 0;
@@ -490,17 +502,19 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
       stacky_string *str = V(0); stacky_symbol *sym;
       PUSH(Y->sym_dict); PUSH(str); PUSH(0); CALLISN(isn_dict_get);
       if ( V(0) ) {
-        V(1) = sym = V(0); POP();
-        // fprintf(stderr, "  sym @%p %s \n", sym, str->b);
+        sym = V(0);
+        fprintf(stderr, "  sym @%p %s \n", sym, str->p);
       } else {
         POP();
         str = (void*) stacky_bytes_dup(Y, (void*) str);
         sym = stky_object_new(Y, stky_t(symbol), sizeof(*sym));
         sym->name = str;
         PUSH(Y->sym_dict); PUSH(str); PUSH(sym); CALLISN(isn_dict_set);
-        V(1) = sym; POP();
-        // fprintf(stderr, "  sym @%p %s NEW \n", sym, str->b);
+        fprintf(stderr, "  sym @%p %s NEW \n", sym, str->p);
       }
+      POP();
+      V(0) = sym;
+      // fprintf(stderr, "  sym %s", str->p); stky_print_vs(Y, stderr); fprintf(stderr, "\n");
     }
   ISN(sym_charP): {
       char *str = (void*) *(pc ++);
@@ -509,6 +523,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
       pc[-2] = isn_lit;
       pc[-1] = (stky_i) V(0);
     }
+  ISN(sym_dict):   PUSH(Y->sym_dict);
   ISN(dict_stack): PUSH(Y->dict_stack);
   ISN(dict_stack_top):
       PUSH(stky_array_top(Y, Y->dict_stack));
@@ -523,7 +538,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
         }
         POP();
       }
-      V(0) = 0; // NOT_FOUND
+      V(0) = Y->v_lookup_na;
     lookup_done:
       (void) 0;
     }
@@ -593,7 +608,7 @@ stky_v stky_read_token(stacky *Y, FILE *in)
 {
   stky_v value;
   stacky_string *token = 0;
-  stky_si n = 0;
+  stky_w n = 0;
   int pot_num_c = 0;
   int literal = 0;
   int state = s_start, last_state = -1, last_state_2;
@@ -607,7 +622,7 @@ stky_v stky_read_token(stacky *Y, FILE *in)
   last_state = last_state_2; last_state_2 = state;
   if ( ! token ) token = stky_string_new_charP(Y, 0, 0);
   if ( c == -2 ) c = fgetc(in);
-  // fprintf(stderr, "  c = %s, state = %d, token = '%s'\n", char_to_str(c), state, token->p);
+  if ( Y->token_debug ) fprintf(stderr, "  c = %s, state = %d, token = '%s'\n", char_to_str(c), state, token->p);
   switch ( state ) {
   case s_error:
     stky_string_append_char(Y, token, c);
@@ -665,21 +680,18 @@ stky_v stky_read_token(stacky *Y, FILE *in)
     switch ( c ) {
     case '0' ... '9':
       next_s(s_int);
-    case EOF:
-      next_s(s_int);
-    case ' ': case '\t': case '\n': case '\r':
-      value = token; next_s(s_stop);
     default:
       next_s(s_symbol);
     }
   case s_int:
     switch ( c ) {
     case '0' ... '9':
-      stky_string_append_char(Y, token, c); take_c();
+      stky_string_append_char(Y, token, c);
       {
-        stky_si prev_n = n;
+        stky_w prev_n = n;
         n = n * 10 + c - '0';
-        if ( n < prev_n ) { next_s(s_symbol); }
+        if ( n < prev_n ) { take_c(); next_s(s_symbol); } // overflow
+        // fprintf(stderr, "  s_int: n = %lld\n", (long long) n);
       }
       next_c();
     case EOF:
@@ -718,10 +730,12 @@ stky_v stky_read_token(stacky *Y, FILE *in)
   stky_push(Y, value);
   stky_push(Y, stky_v_int(last_state));
 
-  fprintf(stderr, "  : ");
-  stky_write(Y, value, stderr, 1);
-  fprintf(stderr, " %d\n", last_state);
-  stky_print_vs(Y, stderr);
+  if ( 0 ) {
+    fprintf(stderr, "  : ");
+    stky_write(Y, value, stderr, 1);
+    fprintf(stderr, " %d\n", last_state);
+    stky_print_vs(Y, stderr);
+  }
 
   return Y;
 }
@@ -739,7 +753,6 @@ stacky *stky_repl(stacky *Y, FILE *in, FILE *out)
     }
     fprintf(stderr, "  =>");
     stky_print_vs(Y, stderr);
-    fprintf(stderr, "\n");
   }
   return Y;
 }
@@ -780,16 +793,22 @@ stacky *stky_write(stacky *Y, stky_v v, FILE *out, int depth)
     {
     stacky_array *a = v;
     fprintf(out, "@%p:", v);
-    if ( is_dict ) fprintf(out, "(");
-    fprintf(out, a->o.flags & 1 ? "{ " : "[ ");
-    for ( size_t i = 0; i < a->l; ++ i ) {
-      stky_write(Y, a->p[i], out, depth - 1);
-      fprintf(out, " ");
-    }
-    fprintf(out, a->o.flags & 1 ? "} " : "] ");
-    if ( is_dict ) {
-      stky_write(Y, ((stacky_dict*) v)->eq, out, depth - 1);
-      fprintf(out, " dict)");
+    if ( v == Y->sym_dict ) {
+      fprintf(out, "<sym_dict>");
+    } else if ( v == Y->dict_0 ) {
+      fprintf(out, "<dict_0>");
+    } else {
+      if ( is_dict ) fprintf(out, "(");
+      fprintf(out, a->o.flags & 1 ? "{ " : "[ ");
+      for ( size_t i = 0; i < a->l; ++ i ) {
+        stky_write(Y, a->p[i], out, depth - 1);
+        fprintf(out, " ");
+      }
+      fprintf(out, a->o.flags & 1 ? "} " : "] ");
+      if ( is_dict ) {
+        stky_write(Y, ((stacky_dict*) v)->eq, out, depth - 1);
+        fprintf(out, " dict)");
+      }
     }
   } break;
   case stky_t_symbol:
@@ -857,16 +876,17 @@ stacky *stacky_new()
     isn_defs[i].i = i;
     Y->isns[isn] = isn_defs[i];
     // Y->isns[isn].o.type = stky_t(isn);
-    isn_w = Y->isns[isn].words = stky_words(Y, isn, isn_rtn);
+    isn_w = Y->isns[isn].words = stky_words(Y, isn);
     isn_w->name = Y->isns[isn].sym_name + 1;
   }
 
   Y->sym_dict = stky_pop(stky_exec(Y, isn_lit, stky_isn_w(isn_string_eq), isn_dict_new));
   Y->dict_stack = stky_pop(stky_exec(Y, isn_lit_int, 0, isn_array_new));
-  stky_exec(Y,
-            isn_dict_stack,
-            isn_lit, stky_isn_w(isn_eq), isn_dict_new,
-            isn_array_push, isn_pop);
+  Y->s_marke     = stky_pop(stky_exec(Y, isn_sym_charP, (stky_i) "{"));
+  Y->s_array_tme = stky_pop(stky_exec(Y, isn_sym_charP, (stky_i) "}"));
+  Y->dict_0      = stky_pop(stky_exec(Y, isn_lit, stky_isn_w(isn_eqw), isn_dict_new));
+  stky_exec(Y, isn_dict_stack, isn_lit, (stky_i) Y->dict_0, isn_array_push, isn_pop);
+
   for ( i = 0; isn_defs[i].name; ++ i ) {
     stky_i isn = isn_defs[i].isn;
     stky_v isn_w = Y->isns[isn].words;
@@ -880,20 +900,19 @@ stacky *stacky_new()
               isn_sym_charP, (stky_i) Y->isns[isn].sym_name,
               isn_lit, (stky_i) isn,
               isn_dict_set, isn_pop);
-    // -- Y->trace;
   }
 
   stky_exec(Y,
             isn_dict_stack_top, isn_sym_charP, (stky_i) "[", isn_lit, stky_isn_w(isn_mark),  isn_dict_set, isn_pop,
             isn_dict_stack_top, isn_sym_charP, (stky_i) "{", isn_lit, stky_isn_w(isn_marke), isn_dict_set, isn_pop,
             isn_dict_stack_top, isn_sym_charP, (stky_i) "]", isn_lit, stky_isn_w(isn_array_tm),  isn_dict_set, isn_pop,
-            isn_dict_stack_top, isn_sym_charP, (stky_i) "}", isn_lit, stky_isn_w(isn_array_tme), isn_dict_set, isn_pop);
+            isn_dict_stack_top, isn_lit, (stky_i) Y->s_array_tme, isn_lit, stky_isn_w(isn_array_tme), isn_dict_set, isn_pop);
             
   fprintf(stderr, "\n\n dict_stack:\n");
   stky_write(Y, Y->dict_stack, stderr, 9999);
   fprintf(stderr, "\n\n");
 
-  {
+  if ( 0 ) {
     FILE *fp;
 
     fprintf(stderr, "  # reading boot.stky\n");
@@ -903,11 +922,13 @@ stacky *stacky_new()
     } else {
       perror("cannot read boot.stky");
     }
-  }
 
-  fprintf(stderr, "\n\n dict_stack:\n");
-  stky_write(Y, Y->dict_stack, stderr, 9999);
-  fprintf(stderr, "\n\n");
+    fprintf(stderr, "\n\n dict_stack:\n");
+    stky_write(Y, Y->dict_stack, stderr, 9999);
+    fprintf(stderr, "\n\n");
+  }
+  // Y->token_debug ++;
+  Y->trace = 10;
 
   return Y;
 }
