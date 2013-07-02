@@ -10,7 +10,7 @@ typedef char *charP;
 typedef unsigned char *ucharP;
 
 typedef void *stky_v;
-typedef size_t stky_si;
+typedef size_t  stky_w;
 typedef ssize_t stky_i;
 
 typedef struct stacky_object {
@@ -92,14 +92,14 @@ typedef stacky_literal *stacky_literalP;
     Y->types + stky_v_tag(V) )
 #define stky_v_type_i(V) stky_v_type(V)->i
 #define _stky_v_int(X)                       (((X)  << 2) | 1)
-#define stky_v_int(X)   ((stky_v) ((((stky_i ) (X)) << 2) | 1))
+#define stky_v_int(X)    ((stky_v) ((((stky_i) (X)) << 2) | 1))
 #define stky_v_int_(V)              (((stky_i) (V)) >> 2)
-#define stky_v_char(X)  ((stky_v) ((((stky_si) (X)) << 2) | 2))
-#define stky_v_char_(V)            (((stky_si) (V)) >> 2)
+#define stky_v_char(X)   ((stky_v) ((((stky_w) (X)) << 2) | 2))
+#define stky_v_char_(V)             (((stky_w) (V)) >> 2)
 #define stky_v_isnQ(V) (stky_v_tag(V) == stky_t_tag)
 #define _stky_v_isn(X)                       (((X)  << 2) | 3)
-#define stky_v_isn(X)               ((stky_v)  (X))
-#define stky_v_isn_(V)              ((stky_si) (V))
+#define stky_v_isn(X)                ((stky_v) (X))
+#define stky_v_isn_(V)               ((stky_w) (V))
 
 #include "isn.h"
 
