@@ -315,9 +315,12 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
     goto call_array;
   }
 #undef TYPE
+  }
+
   do_isn:
 #define ISN(name) goto next_isn; case isn_##name: L_##name
   switch ( (int) val ) {
+  case 0: goto L_rtn;
 // #include "isns.c"
   ISN(nul):   abort();
   ISN(hdr):
@@ -394,6 +397,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
   ISN(cve):       Vt(0, stacky_object*)->flags |= 1;
   ISN(eval):      val = POP(); goto eval;
   ISN(mark):      PUSH(stky_v_mark);
+  ISN(marke):     PUSH(stky_v_marke); Y->defer_eval ++;
   ISN(ctm): {
       size_t n = 0; stky_v *p = vp;
       while ( p >= Y->vs.p ) {
@@ -579,7 +583,6 @@ enum read_token_state {
     s_int,
     s_char,
     s_string,
-    s_stk_op,
 };
 
 stky_v stky_read_token(stacky *Y, FILE *in)
@@ -626,23 +629,13 @@ stky_v stky_read_token(stacky *Y, FILE *in)
       state = s_char; next_c();
     case '"':
       state = s_string; next_c();
-    case '{': 
-      Y->in_exec_array ++;
-      goto mark;
-    case '}': 
-      Y->in_exec_array --;
-      goto mark;
-    mark:
-    case '[': case ']':
-      value = stky_v_char(c); take_c();
-      stop_s(s_stk_op);
     case ',':
       fprintf(stderr, "\n");
       stky_print_vs(Y, stderr);
       fprintf(stderr, "\n");
       next_c();
     default:
-      next_s(s_error);
+      next_s(s_symbol);
     }
   case s_comment_eol:
     switch ( c ) {
@@ -732,47 +725,18 @@ stky_v stky_read_token(stacky *Y, FILE *in)
 stacky *stky_repl(stacky *Y, FILE *in, FILE *out)
 {
   int c = 0;
-  Y->in_exec_array = 0;
   while ( ! feof(in) ) {
     stky_read_token(Y, in);
     switch ( stky_v_int_(stky_pop(Y)) ) {
     case s_eos:
       break;
-    case s_symbol: case s_literal:
-      if ( ! Y->in_exec_array ) {
-        stky_exec(Y, isn_eval);
-      }
-      break;
-    case s_int: case s_char: case s_string:
-      break;
-    case s_stk_op:
-      switch ( c = stky_v_char_(stky_pop(Y)) ) {
-      case '[': case '{':
-        stky_push(Y, stky_v_mark);
-        break;
-      case ']':
-        if ( ! Y->in_exec_array ) {
-          stky_exec(Y, isn_array_tm);
-        } else {
-          stky_push(Y, (stky_v) isn_array_tm);
-        }
-        break;
-      case '}':
-        if ( ! Y->in_exec_array ) {
-          stky_exec(Y, isn_array_tme);
-        } else {
-          stky_push(Y, (stky_v) isn_array_tme);
-        }
-        break;
-      default:
-        abort();
-      }
+    default:
+      stky_exec(Y, isn_eval);
     }
     fprintf(stderr, "  =>");
     stky_print_vs(Y, stderr);
     fprintf(stderr, "\n");
   }
-  Y->in_exec_array = 0;
   return Y;
 }
 
@@ -849,8 +813,12 @@ stacky *stacky_new()
   Y->v_stdin  = stdin;
   Y->v_stdout = stdout;
   Y->v_stderr = stderr;
-  Y->v_mark = (void*) stky_string_new_charP(Y, "[", 1);
-  ((stacky_object *) Y->v_mark)->type = stky_t(mark);
+
+  Y->v_mark =  (void*) stky_string_new_charP(Y, "[", 1);
+  Y->v_marke = (void*) stky_string_new_charP(Y, "{", 1);
+  ((stacky_object *) Y->v_mark)->type  = stky_t(mark);
+  ((stacky_object *) Y->v_marke)->type = stky_t(mark);
+
   Y->v_lookup_na = (void*) stky_string_new_charP(Y, "&&lookup_na", -1);
   ((stacky_object *) Y->v_lookup_na)->type = stky_t(mark);
 
@@ -911,6 +879,12 @@ stacky *stacky_new()
     // -- Y->trace;
   }
 
+  stky_exec(Y,
+            isn_dict_stack_top, isn_sym_charP, (stky_i) "[", isn_lit, stky_isn_w(isn_mark),  isn_dict_set, isn_pop,
+            isn_dict_stack_top, isn_sym_charP, (stky_i) "{", isn_lit, stky_isn_w(isn_marke), isn_dict_set, isn_pop,
+            isn_dict_stack_top, isn_sym_charP, (stky_i) "]", isn_lit, stky_isn_w(isn_array_tm),  isn_dict_set, isn_pop,
+            isn_dict_stack_top, isn_sym_charP, (stky_i) "}", isn_lit, stky_isn_w(isn_array_tme), isn_dict_set, isn_pop);
+            
   fprintf(stderr, "\n\n dict_stack:\n");
   stky_write(Y, Y->dict_stack, stderr, 9999);
   fprintf(stderr, "\n\n");

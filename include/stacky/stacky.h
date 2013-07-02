@@ -115,8 +115,9 @@ typedef struct stacky {
   stacky_array vs, es;
   stky_i trace, threaded_comp;
   stky_v v_stdin, v_stdout, v_stderr;
-  stky_v v_mark, v_lookup_na;
+  stky_v v_mark, v_marke, v_lookup_na;
 #define stky_v_mark (Y)->v_mark
+#define stky_v_marke (Y)->v_marke
   stacky_dict *sym_dict;
   stacky_array *dict_stack;
   stacky_type types[stky_t_END + 1];
