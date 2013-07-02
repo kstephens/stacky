@@ -2,17 +2,8 @@
 #include "gc/gc.h"
 #include <ctype.h>
 
-struct isn_def {
-  int i;
-  stky_i isn;
-  int nwords;
-  const char *name;
-  const char *isn_sym;
-  void *addr;
-};
-
-static struct isn_def isn_table[] = {
-#define ISN(name,nwords) { -1, isn_##name, nwords, #name, "&&" #name },
+static stacky_isn isn_defs[] = {
+#define ISN(name,nwords) { { 0 }, -1, isn_##name, nwords, #name, "&&" #name },
 #include "stacky/isns.h"
   { 0, 0, 0, 0 },
 };
@@ -233,17 +224,18 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
 #define CALLISN(I) do {                         \
     if ( 0 ) { fprintf(stderr, "  # CALLISN(%s)\n", #I); }      \
     Y->trace --;                                \
-    stacky_call(Y, Y->isn_words[I]->p);         \
+    stacky_call(Y, Y->isns[I].words->p);        \
     Y->trace ++;                                \
   } while (0)
 
  call:
   if ( Y->trace > 0 ) { fprintf(stderr, "  # {\n"); }
 #if 0
-  if ( ! isn_table[0].addr ) {
+  if ( ! Y->isns[0].addr ) {
     struct isn_def *isn;
-#define ISN(name,lits) isn = &isn_table[isn_##name]; isn->addr = &&L_##name;
+#define ISN(name,lits) isn = &Y->isns[isn_##name]; isn->addr = &&L_##name;
 #include "stacky/isns.h"
+    Y->isns[0].addr = (void*) i;
   }
 
   if ( Y->threaded_comp && *pc == isn_hdr ) {
@@ -251,7 +243,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
     *(pc ++) = isn_hdr_;
     while ( *pc != isn_END ) {
       if ( ! stky_v_isnQ(*pc) ) { pc ++; continue; }
-      struct isn_def *isn = &isn_table[stky_v_int_(*pc)];
+      struct isn_def *isn = &Y->isns[*pc];
       fprintf(stderr, "  %4d %10s => @%p\n", (int) (pc - pc_save), isn->name, isn->addr);
       *pc = (stky_i) isn->addr;
       pc += isn->nwords;
@@ -277,7 +269,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
     switch ( stky_v_type_i(*pc) ) {
     case stky_t_isn:
     if ( *pc != isn_END ) {
-      fprintf(stderr, "  # I: %-20s @%p", isn_table[stky_v_int_(*pc)].name, (void*) pc);
+      fprintf(stderr, "  # I: %-20s @%p", Y->isns[*pc].name, (void*) pc);
       switch ( *pc ) {
       case isn_lit: case isn_lit_voidP:
         fprintf(stderr, "%p ", (void*) pc[1]); break;
@@ -804,7 +796,7 @@ stacky *stky_write(stacky *Y, stky_v v, FILE *out, int depth)
   case stky_t_type:
     fprintf(out, "$%s", stky_v_type(v)->name); break;
   case stky_t_isn:
-    fprintf(out, "%s", isn_table[stky_v_int_(v)].isn_sym); break;
+    fprintf(out, "%s", Y->isns[(stky_i) v].sym_name); break;
   case stky_t_string:
     fprintf(out, "\"%s\"", ((stacky_string*) v)->p); break;
   case stky_t_words:
@@ -885,31 +877,36 @@ stacky *stacky_new()
     if ( (v = getenv("STACKY_TRACE")) && (i = atoi(v)) > 0 )
       Y->trace = i;
   }
-  for ( i = 0; isn_table[i].name; ++ i ) {
-    stky_i isn = isn_table[i].isn;
-    stacky_words *isn_w = Y->isn_words[isn] = 
-      stky_words(Y, isn, isn_rtn);
-    isn_w->name = isn_table[i].isn_sym + 1;
-    isn_table[i].i = i;
+
+  for ( i = 0; isn_defs[i].name; ++ i ) {
+    stky_i isn = isn_defs[i].isn;
+    stacky_words *isn_w;
+
+    isn_defs[i].i = i;
+    Y->isns[isn] = isn_defs[i];
+    // Y->isns[isn].o.type = stky_t(isn);
+    isn_w = Y->isns[isn].words = stky_words(Y, isn, isn_rtn);
+    isn_w->name = Y->isns[isn].sym_name + 1;
   }
+
   Y->sym_dict = stky_pop(stky_exec(Y, isn_lit, stky_isn_w(isn_string_eq), isn_dict_new));
   Y->dict_stack = stky_pop(stky_exec(Y, isn_lit_int, 0, isn_array_new));
   stky_exec(Y,
             isn_dict_stack,
             isn_lit, stky_isn_w(isn_eq), isn_dict_new,
             isn_array_push, isn_pop);
-  for ( i = 0; isn_table[i].name; ++ i ) {
-    stky_i isn = isn_table[i].isn;
-    stky_v isn_w = Y->isn_words[isn];
+  for ( i = 0; isn_defs[i].name; ++ i ) {
+    stky_i isn = isn_defs[i].isn;
+    stky_v isn_w = Y->isns[isn].words;
     // fprintf(stderr, "  isn %ld => ", isn); stky_write(Y, isn_w, stderr, 2); fprintf(stderr, "\n");
     stky_exec(Y,
               isn_dict_stack_top,
-              isn_sym_charP, (stky_i) isn_table[i].isn_sym + 1,
+              isn_sym_charP, (stky_i) Y->isns[isn].sym_name + 1,
               isn_lit, (stky_i) isn_w,
               isn_dict_set, isn_pop,
               isn_dict_stack_top,
-              isn_sym_charP, (stky_i) isn_table[i].isn_sym,
-              isn_lit, (stky_i) isn_table[i].isn,
+              isn_sym_charP, (stky_i) Y->isns[isn].sym_name,
+              isn_lit, (stky_i) isn,
               isn_dict_set, isn_pop);
     // -- Y->trace;
   }

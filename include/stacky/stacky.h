@@ -25,6 +25,17 @@ typedef struct stacky_type {
   const char *name;
 } stacky_type;
 
+typedef struct stacky_isn {
+  stacky_object o;
+  int i;
+  stky_i isn;
+  int nwords;
+  const char *name;
+  const char *sym_name;
+  void *addr;
+  struct stacky_words *words;
+} stacky_isn;
+
 typedef struct stacky_bytes {
   stacky_object o;
   void *b, *p;
@@ -110,13 +121,13 @@ typedef struct stacky {
   stacky_array *dict_stack;
   stacky_type types[stky_t_END + 1];
 #define stky_t(name) (Y->types + stky_t_##name)
-  stacky_words *isn_words[isn_END + 1];
-#define stky_isn_w(I) ((stky_i) Y->isn_words[I])
+  stacky_isn isns[isn_END + 1];
+#define stky_isn_w(I) ((stky_i) Y->isns[I].words)
+  stky_i defer_eval;
   stky_i in_exec_array;
 } stacky;
 
 stacky *stacky_new();
-stacky *stacky_isn(stacky *Y, stky_i isn);
 
 stacky *stacky_call(stacky *Y, stky_i *pc);
 #define stky_words(Y,WORDS...) \
