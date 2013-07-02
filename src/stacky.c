@@ -296,13 +296,17 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
 
   val = (stky_v) *(pc ++);
  eval:
+  if ( val == Y->v_marke && Y->defer_eval > 0 ) Y->defer_eval --;
+  if ( Y->defer_eval > 0 ) {
+    PUSH(val); goto next_isn;
+  } else {
 #define TYPE(name) goto next_isn; case stky_t_##name: T_##name
   switch ( stky_v_type_i(val) ) {
   default:       PUSH(val);
   TYPE(isn):     goto do_isn;
   TYPE(string):  PUSH(val);
   TYPE(literal): PUSH(((stacky_literal*) val)->value);
-  TYPE(symbol):  stky_exec(Y, isn_lookup, isn_eval);
+  TYPE(symbol):  PUSH(val); stky_exec(Y, isn_lookup, isn_eval);
   TYPE(array):
     if ( ((stacky_object*) val)->flags & 1 ) {
     call_array:
