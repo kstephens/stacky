@@ -90,6 +90,7 @@ typedef struct stky_catch {
   stky_v thrown, value;
   stky_v vs_depth, es_depth;
   struct stky_catch *prev, *prev_error_catch;
+  stky_i defer_eval;
 } stky_catch;
 typedef stky_catch *stky_catchP;
 

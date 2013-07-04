@@ -194,6 +194,7 @@ stky_catch *stky_catch__new(stky *Y)
   c->vs_depth = stky_v_int(Y->vs.l);
   c->es_depth = stky_v_int(Y->es.l);
   c->prev_error_catch = Y->error_catch; // NOT THREAD-SAFE
+  c->defer_eval = c->defer_eval;
   return c;
 }
 
@@ -213,6 +214,7 @@ void stky_catch__throw(stky *Y, stky_catch *c, stky_v value)
   Y->vs.l = stky_v_int_(c->vs_depth);
   Y->es.l = stky_v_int_(c->es_depth);
   Y->error_catch = c->prev_error_catch;
+  Y->defer_eval = c->defer_eval;
   siglongjmp(c->jb, 1);
 }
 
@@ -263,10 +265,13 @@ stky *stky_call(stky *Y, stky_i *pc)
     goto call;                                     \
   } while (0)
 #define CALLISN(I) do {                         \
+    stky_i save = Y->defer_eval;                                \
+    Y->defer_eval = 0;                                          \
     if ( 0 ) { fprintf(stderr, "  # CALLISN(%s)\n", #I); }      \
     Y->trace --;                                \
     stky_call(Y, Y->isns[I].words->p);        \
     Y->trace ++;                                \
+    Y->defer_eval = save;                       \
   } while (0)
 
  call:
@@ -511,7 +516,6 @@ stky *stky_call(stky *Y, stky_i *pc)
         POP();
         i += 2;
       }
-      dict_get_done:
       POPN(2);
       V(0) = v;
       }
