@@ -1,18 +1,19 @@
 # Comment
 
-&dict_stack_top
-`def
+
 # v k `def | 
-{ 
-  &dict_stack_top    # v k D |
-  &dict_set &pop     #       |
-}   
-&dict_set &pop
+{ &dict_stack_top &dict_set }
+`def &dict_stack_top &dict_set
 
 {
   &v_stdout &write
   "
-" &v_stdout &write
+" &v_stdout &write_string
 } `p def
 
-5 p
+{
+  dup &v_stdout &write
+  "
+" &v_stdout &write_string
+} `. def
+

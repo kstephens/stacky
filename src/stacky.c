@@ -480,20 +480,20 @@ stky *stky_call(stky *Y, stky_i *pc)
       Vt(0,stky_arrayP) =
         stky_array_init(Y, stky_object_new(Y, stky_t(array), sizeof(stky_array)), Vi(0));
   ISN(array_tm):
-      stky_exec(Y, isn_ctm, isn_array_stk, isn_swap, isn_pop);
+      stky_exec(Y, isn_ctm, isn_array_stk);
   ISN(array_tme):
-      stky_exec(Y, isn_ctm, isn_array_stk, isn_swap, isn_pop, isn_cve);
+      stky_exec(Y, isn_ctm, isn_array_stk, isn_cve);
   ISN(array_b):  V(0) = Vt(0,stky_arrayP)->b;
   ISN(array_p):  V(0) = Vt(0,stky_arrayP)->p;
   ISN(array_l):  V(0) = stky_v_int(Vt(0,stky_arrayP)->l);
   ISN(array_s):  V(0) = stky_v_int(Vt(0,stky_arrayP)->s);
   ISN(array_es): V(0) = stky_v_int(Vt(0,stky_arrayP)->es);
-  ISN(array_get):  V(1) = Vt(1,stky_arrayP)->b[Vi(0)]; POP();
-  ISN(array_set):  Vt(2,stky_arrayP)->b[Vi(1)] = V(0); POPN(2);
-  ISN(array_push):
-      stky_array_push(Y, V(1), V(0));
-      POP();
-  ISN(array_pop):
+  ISN(array_get):  V(1) = Vt(0,stky_arrayP)->b[Vi(1)]; POPN(2);
+  ISN(array_set):  Vt(0,stky_arrayP)->b[Vi(1)] = V(2); POPN(2);
+  ISN(array_push): // v a ARRAY_PUSH |
+      stky_array_push(Y, V(0), V(1));
+      POPN(2);
+  ISN(array_pop): // a ARRAY_POP | a[-- a.l]
       V(0) = stky_array_pop(Y, V(0));
   ISN(dict_new): {
       stky_dict *d = stky_object_new(Y, stky_t(dict), sizeof(*d));
@@ -502,9 +502,9 @@ stky *stky_call(stky *Y, stky_i *pc)
       // fprintf(stderr, "  dict_new %lld\n", (long long) d);
       Vt(0,stky_dictP) = d;
     }
-  ISN(dict_get): { // dict k d DICT_GET | (v|d)
-      stky_dict *d = Vt(2,stky_dictP);
-      stky_v k = V(1), v = V(0);
+  ISN(dict_get): { // v k dict DICT_GET | (v|d)
+      stky_dict *d = Vt(0,stky_dictP);
+      stky_v k = V(1), v = V(2);
       size_t i = 0;
       while ( i + 1 < d->a.l ) {
         PUSH(k); PUSH(d->a.p[i]); PUSH(d->eq); CALLISN(isn_call);
@@ -519,25 +519,24 @@ stky *stky_call(stky *Y, stky_i *pc)
       POPN(2);
       V(0) = v;
       }
-  ISN(dict_set): { // dict k v DICT_SET |
-      stky_dict *d = Vt(2,stky_dictP);
-      stky_v k = V(1), v = V(0);
+  ISN(dict_set): { // v k dict DICT_SET |
+      stky_dict *d = Vt(0,stky_dictP);
+      stky_v k = V(1), v = V(2);
       size_t i = 0;
       while ( i + 1 < d->a.l ) {
         PUSH(k); PUSH(d->a.p[i]); PUSH(d->eq); CALLISN(isn_call);
         if ( Vi(0) ) {
           POP();
-          d->a.p[i + 1] = V(0);
-          POPN(2);
+          d->a.p[i + 1] = v;
           goto dict_set_done;
         }
         POP();
         i += 2;
       }
-      POPN(2);
-      PUSH(k); CALLISN(isn_array_push);
-      PUSH(v); CALLISN(isn_array_push);
+      PUSH(k); PUSH(d); CALLISN(isn_array_push);
+      PUSH(v); PUSH(d); CALLISN(isn_array_push);
     dict_set_done:
+      POPN(3);
       if ( 0 && d != Y->sym_dict ) {
         fprintf(stderr, "  dict_set => "); stky_write(Y, d, stderr, 3); fprintf(stderr, "\n");
       }
@@ -545,20 +544,20 @@ stky *stky_call(stky *Y, stky_i *pc)
     }
   ISN(sym): {
       stky_string *str = V(0); stky_symbol *sym;
-      PUSH(Y->sym_dict); PUSH(str); PUSH(0); CALLISN(isn_dict_get);
+      PUSH(0); PUSH(str); PUSH(Y->sym_dict); CALLISN(isn_dict_get);
       if ( V(0) ) {
-        sym = V(0);
-        fprintf(stderr, "  sym @%p %s \n", sym, str->p);
+        sym = V(1) = V(0);
+        POP();
+        // fprintf(stderr, "  sym @%p %s \n", sym, str->p);
       } else {
         POP();
         str = (void*) stky_bytes_dup(Y, (void*) str);
         sym = stky_object_new(Y, stky_t(symbol), sizeof(*sym));
         sym->name = str;
-        PUSH(Y->sym_dict); PUSH(str); PUSH(sym); CALLISN(isn_dict_set);
-        fprintf(stderr, "  sym @%p %s NEW \n", sym, str->p);
+        PUSH(sym); PUSH(str); PUSH(Y->sym_dict); CALLISN(isn_dict_set);
+        V(0) = sym;
+        // fprintf(stderr, "  sym @%p %s NEW \n", sym, str->p);
       }
-      POP();
-      V(0) = sym;
       // fprintf(stderr, "  sym %s", str->p); stky_print_vs(Y, stderr); fprintf(stderr, "\n");
     }
   ISN(sym_charP): {
@@ -576,7 +575,7 @@ stky *stky_call(stky *Y, stky_i *pc)
       stky_v k = V(0);
       int i = Y->dict_stack->l;
       while ( -- i >= 0 ) {
-        PUSH(Y->dict_stack->p[i]); PUSH(k); PUSH(Y->v_lookup_na); CALLISN(isn_dict_get);
+        PUSH(Y->v_lookup_na); PUSH(k); PUSH(Y->dict_stack->p[i]); CALLISN(isn_dict_get);
         if ( V(0) != Y->v_lookup_na ) {
           V(1) = V(0); POP();
           goto lookup_done;
@@ -963,47 +962,50 @@ stky *stky_new()
     isn_w->name = Y->isns[isn].sym_name + 1;
   }
 
-  Y->sym_dict = stky_pop(stky_exec(Y, isn_lit, stky_isn_w(isn_string_eq), isn_dict_new));
-  Y->dict_stack = stky_pop(stky_exec(Y, isn_lit_int, 0, isn_array_new));
+  Y->sym_dict    = stky_pop(stky_exec(Y, isn_lit, stky_isn_w(isn_string_eq), isn_dict_new));
+  Y->dict_stack  = stky_pop(stky_exec(Y, isn_lit_int, 0, isn_array_new));
   Y->s_marke     = stky_pop(stky_exec(Y, isn_sym_charP, (stky_i) "{"));
   Y->s_array_tme = stky_pop(stky_exec(Y, isn_sym_charP, (stky_i) "}"));
   Y->dict_0      = stky_pop(stky_exec(Y, isn_lit, stky_isn_w(isn_eqw), isn_dict_new));
-  stky_exec(Y, isn_dict_stack, isn_lit, (stky_i) Y->dict_0, isn_array_push, isn_pop);
+  stky_exec(Y, isn_lit, (stky_i) Y->dict_0, isn_dict_stack, isn_array_push);
 
   for ( i = 0; isn_defs[i].name; ++ i ) {
     stky_i isn = isn_defs[i].isn;
     stky_v isn_w = Y->isns[isn].words;
     // fprintf(stderr, "  isn %ld => ", isn); stky_write(Y, isn_w, stderr, 2); fprintf(stderr, "\n");
     stky_exec(Y,
-              isn_dict_stack_top,
+              isn_lit, (stky_i) isn_w,
               isn_sym_charP, (stky_i) Y->isns[isn].sym_name + 2,
+              isn_dict_stack_top, isn_dict_set,
+
               isn_lit, (stky_i) isn_w,
-              isn_dict_set, isn_pop,
-              isn_dict_stack_top,
               isn_sym_charP, (stky_i) Y->isns[isn].sym_name + 1,
-              isn_lit, (stky_i) isn_w,
-              isn_dict_set, isn_pop,
-              isn_dict_stack_top,
-              isn_sym_charP, (stky_i) Y->isns[isn].sym_name,
+              isn_dict_stack_top, isn_dict_set,
+
               isn_lit, (stky_i) isn,
-              isn_dict_set, isn_pop);
+              isn_sym_charP, (stky_i) Y->isns[isn].sym_name,
+              isn_dict_stack_top, isn_dict_set);
   }
 
-#define BOP(N,OP) stky_exec(Y, isn_dict_stack_top, isn_sym_charP, (stky_i) #OP, isn_sym_charP, (stky_i) ("&&" #N), isn_lookup, isn_dict_set, isn_pop);
+  Y->trace = 10;
+  stky_exec(Y,
+            isn_lit, (stky_i) stky_isn_w(isn_mark),      isn_sym_charP, (stky_i) "[", isn_dict_stack_top, isn_dict_set,
+            isn_lit, (stky_i) stky_isn_w(isn_marke),     isn_sym_charP, (stky_i) "{", isn_dict_stack_top, isn_dict_set,
+            isn_lit, (stky_i) stky_isn_w(isn_array_tm),  isn_sym_charP, (stky_i) "]", isn_dict_stack_top, isn_dict_set,
+            isn_lit, (stky_i) stky_isn_w(isn_array_tme), isn_sym_charP, (stky_i) "}", isn_dict_stack_top, isn_dict_set);
+
+  Y->trace = 0;
+#define BOP(N,OP) stky_exec(Y, isn_sym_charP, (stky_i) ("&&" #N), isn_lookup, isn_sym_charP, (stky_i) #OP, isn_dict_stack_top, isn_dict_set);
 #define UOP(N,OP) BOP(N,OP)
 #include "stacky/cops.h"
 
-  stky_exec(Y,
-            isn_dict_stack_top, isn_sym_charP, (stky_i) "[", isn_lit, stky_isn_w(isn_mark),  isn_dict_set, isn_pop,
-            isn_dict_stack_top, isn_sym_charP, (stky_i) "{", isn_lit, stky_isn_w(isn_marke), isn_dict_set, isn_pop,
-            isn_dict_stack_top, isn_sym_charP, (stky_i) "]", isn_lit, stky_isn_w(isn_array_tm),  isn_dict_set, isn_pop,
-            isn_dict_stack_top, isn_lit, (stky_i) Y->s_array_tme, isn_lit, stky_isn_w(isn_array_tme), isn_dict_set, isn_pop);
 
   fprintf(stderr, "\n\n dict_stack:\n");
   stky_write(Y, Y->dict_stack, stderr, 9999);
   fprintf(stderr, "\n\n");
 
-  if ( 0 ) {
+  // Y->trace = 10;
+  if ( 1 ) {
     FILE *fp;
 
     fprintf(stderr, "  # reading boot.stky\n");
@@ -1019,7 +1021,7 @@ stky *stky_new()
     fprintf(stderr, "\n\n");
   }
   // Y->token_debug ++;
-  Y->trace = 10;
+  // Y->trace = 10;
 
   return Y;
 }

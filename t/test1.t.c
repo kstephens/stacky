@@ -28,8 +28,8 @@ int main(int argc, char **argv)
     isn_lit_voidP, (stky_i) t, isn_call,
     isn_jmpr, 3,
     isn_lit_voidP, (stky_i) f, isn_call,
-    isn_lit_voidP, (stky_i) eq, isn_dict_new,
-    isn_lit_int, 1, isn_lit_int, 2, isn_dict_set,
+    isn_lit_voidP, (stky_i) eq, isn_dict_new, // FIXME
+    isn_lit_int, 1, isn_lit_int, 2, isn_dict_set, // FIXME
     isn_dup, isn_lit_int, 1, isn_lit_int, 0, isn_dict_get,
     isn_v_stdout, isn_write_int, isn_lit_charP, (stky_i) "\n", isn_v_stdout, isn_write_string,
     isn_dup, isn_lit_int, 3, isn_lit_int, 0, isn_dict_get,
