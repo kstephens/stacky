@@ -437,19 +437,19 @@ stky *stky_call(stky *Y, stky_i *pc)
   ISN(v_stdout): PUSH(Y->v_stdout);
   ISN(v_stderr): PUSH(Y->v_stderr);
   ISN(write):
-    stky_write(Y, V(1), Vt(0,FILE*), 9999); POPN(2);
+    stky_write(Y, V(1), Vt(0,stky_io*)->fp, 9999); POPN(2);
   ISN(write_int):
-    fprintf(Vt(0,FILE*), "%lld", (long long) Vi(1)); POPN(2);
+    fprintf(Vt(0,stky_io*)->fp, "%lld", (long long) Vi(1)); POPN(2);
   ISN(write_char):
-    fprintf(Vt(0,FILE*), "%c", (int) stky_v_char_(V(1))); POPN(2);
+    fprintf(Vt(0,stky_io*)->fp, "%c", (int) stky_v_char_(V(1))); POPN(2);
   ISN(write_symbol): {
       stky_symbol *s = Vt(1,stky_symbolP); 
       V(1) = s->name; goto I_write_string; }
   ISN(write_string): { 
       stky_string *s = Vt(1,stky_stringP); 
-      fwrite(s->b, 1, s->l, Vt(0,FILE*)); (void) POPN(2); }
+      fwrite(s->p, 1, s->l, Vt(0,stky_io*)->fp); POPN(2); }
   ISN(write_voidP):
-    fprintf(Vt(0,FILE*), "@%p", Vt(1,voidP)); POPN(2);
+    fprintf(Vt(0,stky_io*)->fp, "@%p", Vt(1,voidP)); POPN(2);
   ISN(c_malloc):  Vt(0,voidP) = malloc(Vi(0));
   ISN(c_realloc): Vt(1,voidP) = realloc(Vt(1,voidP), Vi(0)); POP();
   ISN(c_free):    free(Vt(0,voidP)); POP();
@@ -898,6 +898,16 @@ stky *stky_write(stky *Y, stky_v v, FILE *out, int depth)
   return Y;
 }
 
+stky_io *stky_io__new(stky *Y, FILE *fp, const char *name, const char *mode)
+{
+  stky_io *o = stky_object_new(Y, stky_t(io), sizeof(*o));
+  if ( ! fp ) { fp = fopen(name, mode); }
+  o->fp = fp;
+  o->name = stky_string_new_charP(Y, name, -1);
+  o->mode = stky_string_new_charP(Y, mode, -1);
+  return o;
+}
+
 stky *stky_new()
 {
   stky *Y = 0;
@@ -906,9 +916,9 @@ stky *stky_new()
   GC_init();
   Y = stky_object_new(Y, stky_t(stky), sizeof(*Y));
   Y->o.type = stky_t(stky);
-  Y->v_stdin  = stdin;
-  Y->v_stdout = stdout;
-  Y->v_stderr = stderr;
+  Y->v_stdin  = stky_io__new(Y, stdin,  "<stdin>",  "r");
+  Y->v_stdout = stky_io__new(Y, stdout, "<stdout>", "w");
+  Y->v_stderr = stky_io__new(Y, stderr, "<stderr>", "w");
 
   Y->v_mark =  (void*) stky_string_new_charP(Y, "[", 1);
   Y->v_marke = (void*) stky_string_new_charP(Y, "{", 1);

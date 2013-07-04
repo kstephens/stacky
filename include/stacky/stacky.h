@@ -84,6 +84,12 @@ typedef struct stky_literal {
 } stky_literal;
 typedef stky_literal *stky_literalP;
 
+typedef struct stky_io {
+  stky_object o;
+  FILE *fp;
+  stky_v name, mode;
+} stky_io;
+
 typedef struct stky_catch {
   stky_object o;
   jmp_buf jb;
