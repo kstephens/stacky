@@ -507,8 +507,8 @@ stky *stky_call(stky *Y, stky_i *pc)
   ISN(array_l):  V(0) = stky_v_int(Vt(0,stky_arrayP)->l);
   ISN(array_s):  V(0) = stky_v_int(Vt(0,stky_arrayP)->s);
   ISN(array_es): V(0) = stky_v_int(Vt(0,stky_arrayP)->es);
-  ISN(array_get):  V(1) = Vt(0,stky_arrayP)->b[Vi(1)]; POPN(2);
-  ISN(array_set):  Vt(0,stky_arrayP)->b[Vi(1)] = V(2); POPN(2);
+  ISN(array_get):  V(1) = Vt(0,stky_arrayP)->p[Vi(1)]; POP();
+  ISN(array_set):  Vt(0,stky_arrayP)->p[Vi(1)] = V(2); POPN(2);
   ISN(array_push): // v a ARRAY_PUSH |
       stky_array_push(Y, V(0), V(1));
       POPN(2);
