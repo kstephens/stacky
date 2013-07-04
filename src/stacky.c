@@ -73,9 +73,11 @@ stky_bytes *stky_bytes_init(stky *Y, stky_bytes *a, size_t es, size_t s)
 stky_bytes *stky_bytes_dup(stky *Y, stky_bytes *a)
 {
   stky_bytes *b = stky_object_dup(Y, a);
+  ssize_t p_off = a->p - a->b;
   *b = *a;
   stky_bytes_init(Y, b, a->es, a->s);
   memcpy(b->b, a->b, a->es * (a->s + 1));
+  b->p = b->b + p_off;
   return a;
 }
 
