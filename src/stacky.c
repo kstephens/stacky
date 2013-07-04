@@ -411,8 +411,10 @@ stky *stky_call(stky *Y, stky_i *pc)
       POP();
       V(0) = stky_v_int(a == b || (a->l == b->l && ! memcmp(a->p, b->p, a->l)));
     }
-  ISN(vget):  V(0) = V(Vi(0));
-  ISN(vset):  V(Vi(1)) = V(0); POPN(2);
+  ISN(vget): // ... 2 1 0 n=1 VGET | 1
+    V(0) = V(Vi(0) + 1);
+  ISN(vset): // ... 2 1 0 v n=1 VSET | ... 2 v 0 
+    V(Vi(0) + 2) = V(1); POPN(2);
   ISN(dup):   PUSH(V(0));
   ISN(pop):   POP();
   ISN(popn):  val = POP(); POPN(stky_v_int_(val));
