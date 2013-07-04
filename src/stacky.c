@@ -919,8 +919,8 @@ stky *stky_new()
   Y->v_stdout = stky_io__new(Y, stdout, "<stdout>", "w");
   Y->v_stderr = stky_io__new(Y, stderr, "<stderr>", "w");
 
-  Y->v_mark =  (void*) stky_string_new_charP(Y, "[", 1);
-  Y->v_marke = (void*) stky_string_new_charP(Y, "{", 1);
+  Y->v_mark =  (void*) stky_string_new_charP(Y, "&&[", -1);
+  Y->v_marke = (void*) stky_string_new_charP(Y, "&&{", -1);
   ((stky_object *) Y->v_mark)->type  = stky_t(mark);
   ((stky_object *) Y->v_marke)->type = stky_t(mark);
 
@@ -969,6 +969,12 @@ stky *stky_new()
   Y->dict_0      = stky_pop(stky_exec(Y, isn_lit, stky_isn_w(isn_eqw), isn_dict_new));
   stky_exec(Y, isn_lit, (stky_i) Y->dict_0, isn_dict_stack, isn_array_push);
 
+  stky_exec(Y,
+            isn_lit, (stky_i) stky_isn_w(isn_mark),      isn_sym_charP, (stky_i) "[", isn_dict_stack_top, isn_dict_set,
+            isn_lit, (stky_i) stky_isn_w(isn_marke),     isn_sym_charP, (stky_i) "{", isn_dict_stack_top, isn_dict_set,
+            isn_lit, (stky_i) stky_isn_w(isn_array_tm),  isn_sym_charP, (stky_i) "]", isn_dict_stack_top, isn_dict_set,
+            isn_lit, (stky_i) stky_isn_w(isn_array_tme), isn_sym_charP, (stky_i) "}", isn_dict_stack_top, isn_dict_set);
+
   for ( i = 0; isn_defs[i].name; ++ i ) {
     stky_i isn = isn_defs[i].isn;
     stky_v isn_w = Y->isns[isn].words;
@@ -987,22 +993,17 @@ stky *stky_new()
               isn_dict_stack_top, isn_dict_set);
   }
 
-  Y->trace = 10;
-  stky_exec(Y,
-            isn_lit, (stky_i) stky_isn_w(isn_mark),      isn_sym_charP, (stky_i) "[", isn_dict_stack_top, isn_dict_set,
-            isn_lit, (stky_i) stky_isn_w(isn_marke),     isn_sym_charP, (stky_i) "{", isn_dict_stack_top, isn_dict_set,
-            isn_lit, (stky_i) stky_isn_w(isn_array_tm),  isn_sym_charP, (stky_i) "]", isn_dict_stack_top, isn_dict_set,
-            isn_lit, (stky_i) stky_isn_w(isn_array_tme), isn_sym_charP, (stky_i) "}", isn_dict_stack_top, isn_dict_set);
-
   Y->trace = 0;
 #define BOP(N,OP) stky_exec(Y, isn_sym_charP, (stky_i) ("&&" #N), isn_lookup, isn_sym_charP, (stky_i) #OP, isn_dict_stack_top, isn_dict_set);
 #define UOP(N,OP) BOP(N,OP)
 #include "stacky/cops.h"
 
 
-  fprintf(stderr, "\n\n dict_stack:\n");
-  stky_write(Y, Y->dict_stack, stderr, 9999);
-  fprintf(stderr, "\n\n");
+  if ( 0 ) {
+    fprintf(stderr, "\n\n dict_stack:\n");
+    stky_write(Y, Y->dict_stack, stderr, 9999);
+    fprintf(stderr, "\n\n");
+  }
 
   // Y->trace = 10;
   if ( 1 ) {
@@ -1016,9 +1017,11 @@ stky *stky_new()
       perror("cannot read boot.stky");
     }
 
-    fprintf(stderr, "\n\n dict_stack:\n");
-    stky_write(Y, Y->dict_stack, stderr, 9999);
-    fprintf(stderr, "\n\n");
+    if ( 0 ) {
+      fprintf(stderr, "\n\n dict_stack:\n");
+      stky_write(Y, Y->dict_stack, stderr, 9999);
+      fprintf(stderr, "\n\n");
+    }
   }
   // Y->token_debug ++;
   // Y->trace = 10;
