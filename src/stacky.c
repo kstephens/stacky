@@ -315,7 +315,7 @@ stky *stky_call(stky *Y, stky_i *pc)
     switch ( stky_v_type_i(*pc) ) {
     case stky_t_isn:
     if ( *pc != isn_END ) {
-      fprintf(stderr, "  # I: %-20s @%p", Y->isns[*pc].name, (void*) pc);
+      fprintf(stderr, "  # I: %-20s @%p defer_eval:%d", Y->isns[*pc].name, (void*) pc, (int) Y->defer_eval);
       switch ( *pc ) {
       case isn_lit: case isn_lit_voidP:
         fprintf(stderr, "%p ", (void*) pc[1]); break;
@@ -700,7 +700,7 @@ stky_v stky_read_token(stky *Y, FILE *in)
     case ' ': case '\t': case '\n': case '\r':
       next_c();
     case '#': take_c(); next_s(s_comment_eol);
-    case '/':
+    case '`':
       literal ++; next_c();
     case '-': case '+':
       stky_string_append_char(Y, token, c);
