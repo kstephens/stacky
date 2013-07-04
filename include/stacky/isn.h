@@ -2,6 +2,7 @@
 #undef ISN
 #else
 enum _isn {
+  _isn_ZERO_ = 0,
 #define ISN(name,lits) _isn_##name,
 #include "isns.h"
   _isn_END_
