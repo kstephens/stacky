@@ -962,6 +962,10 @@ stacky *stacky_new()
     // fprintf(stderr, "  isn %ld => ", isn); stky_write(Y, isn_w, stderr, 2); fprintf(stderr, "\n");
     stky_exec(Y,
               isn_dict_stack_top,
+              isn_sym_charP, (stky_i) Y->isns[isn].sym_name + 2,
+              isn_lit, (stky_i) isn_w,
+              isn_dict_set, isn_pop,
+              isn_dict_stack_top,
               isn_sym_charP, (stky_i) Y->isns[isn].sym_name + 1,
               isn_lit, (stky_i) isn_w,
               isn_dict_set, isn_pop,
@@ -970,6 +974,10 @@ stacky *stacky_new()
               isn_lit, (stky_i) isn,
               isn_dict_set, isn_pop);
   }
+
+#define BOP(N,OP) stky_exec(Y, isn_dict_stack_top, isn_sym_charP, (stky_i) #OP, isn_sym_charP, (stky_i) ("&&" #N), isn_lookup, isn_dict_set, isn_pop);
+#define UOP(N,OP) BOP(N,OP)
+#include "stacky/cops.h"
 
   stky_exec(Y,
             isn_dict_stack_top, isn_sym_charP, (stky_i) "[", isn_lit, stky_isn_w(isn_mark),  isn_dict_set, isn_pop,
