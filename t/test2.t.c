@@ -2,7 +2,7 @@
 
 int main(int argc, char **argv)
 {
-  stacky *Y = stacky_new();
+  stky *Y = stky_new();
   {
     char eq1[] = "&eq", eq2[] = "&eq", eq3[] = "&eq";
     stky_i e[] = {
@@ -14,8 +14,8 @@ int main(int argc, char **argv)
       isn_v_stdout, isn_write_int,
       isn_lit_charP, (stky_i) "\n", isn_v_stdout, isn_write_string,
       isn_rtn, isn_END };
-    stacky_call(Y, e);
-    stacky_call(Y, e);
+    stky_call(Y, e);
+    stky_call(Y, e);
   }
   {
     stky_i sym[] = {
@@ -29,8 +29,8 @@ int main(int argc, char **argv)
       isn_lit_voidP, (stky_i) sym, isn_call,
       isn_lit_voidP, (stky_i) sym, isn_call,
       isn_rtn, isn_END };
-    stacky_call(Y, e);
-    stacky_call(Y, e);
+    stky_call(Y, e);
+    stky_call(Y, e);
   }
 
   return 0;

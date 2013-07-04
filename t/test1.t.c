@@ -2,7 +2,7 @@
 
 int main(int argc, char **argv)
 {
-  stacky *Y = stacky_new();
+  stky *Y = stky_new();
   {
   stky_i t[] = {
     isn_hdr,
@@ -36,7 +36,7 @@ int main(int argc, char **argv)
     isn_v_stdout, isn_write_int, isn_lit_charP, (stky_i) "\n", isn_v_stdout, isn_write_string,
     isn_pop,
     isn_rtn, isn_END };
-  stacky_call(Y, isns);
+  stky_call(Y, isns);
   }
 
   return 0;

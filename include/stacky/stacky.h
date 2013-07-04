@@ -14,78 +14,78 @@ typedef void *stky_v;
 typedef size_t  stky_w;
 typedef ssize_t stky_i;
 
-typedef struct stacky_object {
-  struct stacky_type *type;
+typedef struct stky_object {
+  struct stky_type *type;
   stky_i flags;
   stky_i size;
-} stacky_object;
+} stky_object;
 
-typedef struct stacky_type {
-  stacky_object o;
+typedef struct stky_type {
+  stky_object o;
   stky_i i;         // stky_t_*; index in Y->types[].
   const char *name;
-} stacky_type;
+} stky_type;
 
-typedef struct stacky_isn {
-  stacky_object o;
+typedef struct stky_isn {
+  stky_object o;
   int i;
   stky_i isn;
   int nwords;
   const char *name;
   const char *sym_name;
   void *addr;
-  struct stacky_words *words;
-} stacky_isn;
+  struct stky_words *words;
+} stky_isn;
 
-typedef struct stacky_bytes {
-  stacky_object o;
+typedef struct stky_bytes {
+  stky_object o;
   void *b, *p;
   stky_i l, s, es;
-} stacky_bytes;
-typedef stacky_bytes *stacky_bytesP;
+} stky_bytes;
+typedef stky_bytes *stky_bytesP;
 
-typedef struct stacky_array {
-  stacky_object o;
+typedef struct stky_array {
+  stky_object o;
   stky_v *b, *p;
   stky_i l, s, es;
-} stacky_array;
-typedef stacky_array *stacky_arrayP;
+} stky_array;
+typedef stky_array *stky_arrayP;
 
-typedef struct stacky_string {
-  stacky_object o;
+typedef struct stky_string {
+  stky_object o;
   char *b, *p;
   stky_i l, s, es;
-} stacky_string;
-typedef stacky_string *stacky_stringP;
+} stky_string;
+typedef stky_string *stky_stringP;
 
-typedef struct stacky_words {
-  stacky_object o;
+typedef struct stky_words {
+  stky_object o;
   stky_i *b, *p;
   stky_i l, s, es;
   const char *name;
-} stacky_words;
-typedef stacky_words *stacky_wordsP;
+} stky_words;
+typedef stky_words *stky_wordsP;
 
-typedef struct stacky_symbol {
-  stacky_object o;
-  stacky_string *name;
-} stacky_symbol;
-typedef stacky_symbol *stacky_symbolP;
+typedef struct stky_symbol {
+  stky_object o;
+  stky_string *name;
+} stky_symbol;
+typedef stky_symbol *stky_symbolP;
 
-typedef struct stacky_dict {
-  stacky_array a;
+typedef struct stky_dict {
+  stky_array a;
   stky_v eq;
-} stacky_dict;
-typedef stacky_dict *stacky_dictP;
+} stky_dict;
+typedef stky_dict *stky_dictP;
 
-typedef struct stacky_literal {
-  stacky_object o;
+typedef struct stky_literal {
+  stky_object o;
   stky_v value;
-} stacky_literal;
-typedef stacky_literal *stacky_literalP;
+} stky_literal;
+typedef stky_literal *stky_literalP;
 
 typedef struct stky_catch {
-  stacky_object o;
+  stky_object o;
   jmp_buf jb;
   stky_v thrown, value;
   stky_v vs_depth, es_depth;
@@ -98,7 +98,7 @@ typedef stky_catch *stky_catchP;
 #define stky_v_tag(V)  (((stky_i) (V)) & 3)
 #define stky_v_type(V)                                         \
   ( ! (V) ? Y->types + stky_t_null :                           \
-    ! stky_v_tag(V) ? *(stacky_type**)(V) :                     \
+    ! stky_v_tag(V) ? *(stky_type**)(V) :                     \
     Y->types + stky_v_tag(V) )
 #define stky_v_type_i(V) stky_v_type(V)->i
 #define _stky_v_int(X)                       (((X)  << 2) | 1)
@@ -120,39 +120,39 @@ enum stky_type_e {
   stky_t_END
 };
 
-typedef struct stacky {
-  stacky_object o;
-  stacky_array vs, es;
+typedef struct stky {
+  stky_object o;
+  stky_array vs, es;
   stky_i trace, token_debug, threaded_comp;
   stky_v v_stdin, v_stdout, v_stderr;
   stky_v v_mark, v_marke, v_lookup_na;
   stky_v s_mark, s_marke, s_array_tme;
-  stacky_dict *sym_dict;
-  stacky_array *dict_stack;
-  stacky_dict *dict_0;
-  stacky_type types[stky_t_END + 1];
+  stky_dict *sym_dict;
+  stky_array *dict_stack;
+  stky_dict *dict_0;
+  stky_type types[stky_t_END + 1];
 #define stky_t(name) (Y->types + stky_t_##name)
-  stacky_isn isns[isn_END + 1];
+  stky_isn isns[isn_END + 1];
 #define stky_isn_w(I) ((stky_i) Y->isns[I].words)
   stky_i defer_eval;
   stky_catch *current_catch, *error_catch;
   stky_v not_found;
-} stacky;
+} stky;
 
-stacky *stacky_new();
+stky *stky_new();
 
-stacky *stacky_call(stacky *Y, stky_i *pc);
+stky *stky_call(stky *Y, stky_i *pc);
 #define stky_words(Y,WORDS...) \
-  ({ stky_i _words_##__LINE__[] = { isn_hdr, WORDS, 0 }; stacky_words_new((Y), _words_##__LINE__, sizeof(_words_##__LINE__) / sizeof(stky_i)); })
+  ({ stky_i _words_##__LINE__[] = { isn_hdr, WORDS, 0 }; stky_words_new((Y), _words_##__LINE__, sizeof(_words_##__LINE__) / sizeof(stky_i)); })
 #define stky_exec(Y,WORDS...)                                            \
-  ({ stky_i _words_##__LINE__[] = { WORDS, isn_rtn, 0 }; stacky_call((Y), _words_##__LINE__); })
+  ({ stky_i _words_##__LINE__[] = { WORDS, isn_rtn, 0 }; stky_call((Y), _words_##__LINE__); })
 
-stky_v stacky_pop(stacky *Y);
+stky_v stky_pop(stky *Y);
 
-stky_v stky_read_token(stacky *Y, FILE *in);
-stacky *stky_repl(stacky *Y, FILE *in, FILE *out);
+stky_v stky_read_token(stky *Y, FILE *in);
+stky *stky_repl(stky *Y, FILE *in, FILE *out);
 
-stacky *stky_write(stacky *Y, stky_v v, FILE *out, int depth);
+stky *stky_write(stky *Y, stky_v v, FILE *out, int depth);
 
 #define stky_catch__BODY(NAME) {                \
   stky_catch *NAME = stky_catch__new(Y);        \
@@ -165,7 +165,7 @@ stacky *stky_write(stacky *Y, stky_v v, FILE *out, int depth);
   break;                                                \
   }                                                     \
 }
-stky_catch *stky__catch__new(stacky *Y);
-void stky_catch__throw(stacky *Y, stky_catch *catch, stky_v value);
+stky_catch *stky__catch__new(stky *Y);
+void stky_catch__throw(stky *Y, stky_catch *catch, stky_v value);
 
 #endif
