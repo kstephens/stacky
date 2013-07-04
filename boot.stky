@@ -1,31 +1,46 @@
 # Comment
 
 
-# v k `def | 
-{ &dict_stack_top &dict_set }
+# k v DEF |
+{ exch &dict_stack_top &dict_set }
 `def &dict_stack_top &dict_set
 
-{
+`p {
   &v_stdout &write
   "
 " &v_stdout &write_string
-} `p def
+} def
 
-{
+`. {
   dup &v_stdout &write
   "
 " &v_stdout &write_string
-} `. def
+} def
 
-{ # desc ERROR |  
-  [ swap `error ] &error_catch &throw
-} `&error def
+`&error { # desc ERROR |
+  [ exch `error ] &error_catch &throw
+} def
 
-{ # val type TYPECHECK |
-   swap          # type val 
+`&typecheck { # val type TYPECHECK |
+   exch          # type val
    1 vget        # type val type
-   swap          # type type val
+   exch          # type type val
    &v_type       # type type type(val)
    eqw           # type type==type(val)
    { pop } { [ swap `typecheck ] &error } ifelse
-} `&typecheck def
+} def
+
+`dict_keys { # dict |
+  bytes_dup exch pop
+  [ ] 0 {              # dict [ ] i
+    dup 3 vget         # dict [ ] i i dict
+    array_get          # dict [ ] i dict[i]
+    2 vget array_push  # dict [ k ... ] i
+    + 2                # dict [ k ... ] i+2
+  } {
+    dup        # dict [ k ... ] i+2 i+2
+    3 vget     # dict [ k ... ] i+2 i+2 dict 
+    array_l <  # dict [ k ... ] i+2 i+2<len(dict)
+  } loop       # dict [ k ... ] I
+  pop exch pop
+} def
