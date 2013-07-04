@@ -349,7 +349,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
 #define TYPE(name) goto next_isn; case stky_t_##name: T_##name
       switch ( stky_v_type_i(val) ) {
       default:       PUSH(val);
-      TYPE(isn):     abort();
+      TYPE(isn):     fprintf(stderr, "\nFATAL: invalid isn %lld\n", val); abort();
       TYPE(string):  PUSH(val);
       TYPE(literal): PUSH(((stacky_literal*) val)->value);
       TYPE(symbol):  PUSH(val); stky_exec(Y, isn_lookup, isn_eval);
