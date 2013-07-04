@@ -1,6 +1,7 @@
 #include "stacky/stacky.h"
 #include "gc/gc.h"
 #include <ctype.h>
+#include <assert.h>
 
 static stky_isn isn_defs[] = {
 #define ISN(name,nwords) { { 0 }, -1, isn_##name, nwords, #name, "&&" #name },
@@ -40,6 +41,7 @@ void stky_free_(void *p, const char *file, int line)
 stky_v stky_object_init(stky *y, void *p, stky_type *type, size_t size)
 {
   stky_object *o = p;
+  assert(stky_v_tag(o) == 0);
   o->type = type;
   o->flags = 0;
   o->size = size;
