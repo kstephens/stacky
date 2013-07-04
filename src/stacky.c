@@ -57,7 +57,7 @@ stky_v stky_object_dup(stky *Y, stky_v v)
 {
   stky_object *a = v;
   stky_object *b = stky_malloc(a->size);
-  *b = *a;
+  memcpy(b, a, a->size);
   return b;
 }
 
@@ -73,19 +73,17 @@ stky_bytes *stky_bytes_init(stky *Y, stky_bytes *a, size_t es, size_t s)
   size_t cs;
   a->p = a->b = stky_malloc(cs = (a->es = es) * ((a->s = s) + 1));
   memset(a->b, 0, cs);
-  a->l = 0;
   return a;
 }
 
 stky_bytes *stky_bytes_dup(stky *Y, stky_bytes *a)
 {
-  stky_bytes *b = stky_object_dup(Y, a);
   ssize_t p_off = a->p - a->b;
-  *b = *a;
+  stky_bytes *b = stky_object_dup(Y, a);
   stky_bytes_init(Y, b, a->es, a->s);
   memcpy(b->b, a->b, a->es * (a->s + 1));
   b->p = b->b + p_off;
-  return a;
+  return b;
 }
 
 stky *stky_bytes_resize(stky *Y, stky_bytes *a, size_t s)
