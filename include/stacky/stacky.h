@@ -104,10 +104,11 @@ typedef stky_catch *stky_catchP;
 #define stky_v_bits 2
 #define stky_v_mask 3
 #define stky_v_tag(V)  (((stky_i) (V)) & 3)
-#define stky_v_type(V)                                         \
-  ( ! (V) ? Y->types + stky_t_null :                           \
-    ! stky_v_tag(V) ? *(stky_type**)(V) :                     \
-    Y->types + stky_v_tag(V) )
+#define stky_v_type(V)                                                  \
+  ({ stky_v __tmp##__LINE__ = (stky_v) (V);                             \
+    ! (__tmp##__LINE__) ? Y->types + stky_t_null :                      \
+      ! stky_v_tag(__tmp##__LINE__) ? *(stky_type**)(__tmp##__LINE__) : \
+      Y->types + stky_v_tag(__tmp##__LINE__); })
 #define stky_v_type_i(V) stky_v_type(V)->i
 #define _stky_v_int(X)                       (((X)  << 2) | 1)
 #define stky_v_int(X)    ((stky_v) ((((stky_i) (X)) << 2) | 1))
