@@ -432,9 +432,9 @@ stky *stky_call(stky *Y, stky_i *pc)
 #include "stacky/cops.h"
   ISN(ifelse): // v t f IFELSE | (t|f)
     if ( Vi(2) ) {
-      POP(); SWAP(0, 1); POP(); goto eval;
+      POP(); SWAP(0, 1); POP(); CALLISN(isn_eval);
     } else {
-      SWAP(0, 1); POP(); SWAP(0, 1); POP(); goto eval;
+      SWAP(0, 1); POP(); SWAP(0, 1); POP(); CALLISN(isn_eval);
     }
   ISN(loop): // e t LOOP |
   loop_again:
