@@ -970,8 +970,19 @@ stky *stky_new()
   int i;
 
   GC_init();
-  Y = stky_object_new(Y, stky_t(stky), sizeof(*Y));
+  Y = stky_object_new(Y, 0, sizeof(*Y));
   Y->o.type = stky_t(stky);
+
+  {
+    stky_type *t;
+#define TYPE(NAME)                                              \
+    t = &Y->types[stky_t_##NAME];                               \
+    stky_object_init(Y, t, stky_t(type), sizeof(*t));           \
+    t->i = stky_t_##NAME;                                       \
+    t->name = #NAME;
+#include "stacky/types.h"
+  }
+
   Y->v_stdin  = stky_io__new(Y, stdin,  "<stdin>",  "r");
   Y->v_stdout = stky_io__new(Y, stdout, "<stdout>", "w");
   Y->v_stderr = stky_io__new(Y, stderr, "<stderr>", "w");
@@ -983,16 +994,6 @@ stky *stky_new()
 
   Y->v_lookup_na = (void*) stky_string_new_charP(Y, "&&lookup_na", -1);
   ((stky_object *) Y->v_lookup_na)->type = stky_t(mark);
-
-  {
-    stky_type *t;
-#define TYPE(NAME)                                              \
-    t = &Y->types[stky_t_##NAME];                               \
-    stky_object_init(Y, t, stky_t(type), sizeof(*t));           \
-    t->i = stky_t_##NAME;                                       \
-    t->name = #NAME;
-#include "stacky/types.h"
-  }
 
   stky_object_init(Y, &Y->vs, stky_t(array), sizeof(Y->vs));
   stky_array_init(Y, &Y->vs, 1023);
