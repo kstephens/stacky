@@ -21,7 +21,7 @@ T_T = $(T_C:%.c=%)
 
 all: $(GEN_H) $(LIB) $(T_T)
 
-include/stacky/isns.h : Makefile
+include/stacky/isns.h : Makefile src/stacky.c
 	touch $@
 	$(CC) $(CFLAGS) -DISN_DEF -E -o - $(LIB_C) | perl -npe 'print $$1, "\n" if /(ISN[(][a-z_][^)]+[)])/i; $$_ = undef;' | sort -u > $@
 	echo '#undef ISN' >> $@

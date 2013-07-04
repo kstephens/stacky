@@ -1,4 +1,6 @@
-#ifndef ISN_DEF
+#ifdef ISN_DEF
+#undef ISN
+#else
 enum _isn {
 #define ISN(name,lits) _isn_##name,
 #include "isns.h"
