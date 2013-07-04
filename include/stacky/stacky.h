@@ -100,6 +100,7 @@ typedef struct stky_catch {
 } stky_catch;
 typedef stky_catch *stky_catchP;
 
+
 #define stky_v_bits 2
 #define stky_v_mask 3
 #define stky_v_tag(V)  (((stky_i) (V)) & 3)

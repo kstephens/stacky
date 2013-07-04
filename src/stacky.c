@@ -358,6 +358,7 @@ stky *stky_call(stky *Y, stky_i *pc)
 #define TYPE(name) goto next_isn; case stky_t_##name: T_##name
       switch ( stky_v_type_i(val) ) {
       default:       PUSH(val);
+        //      TYPE(null):    goto I_rtn;
       TYPE(isn):     fprintf(stderr, "\nFATAL: invalid isn %lld\n", (long long) val); abort();
       TYPE(string):  PUSH(val);
       TYPE(literal): PUSH(((stky_literal*) val)->value);
@@ -417,14 +418,25 @@ stky *stky_call(stky *Y, stky_i *pc)
 #define BOP(name, op) ISN(name): V(1) = stky_v_int(Vi(1) op Vi(0)); POP();
 #define UOP(name, op) ISN(name): V(0) = stky_v_int(op Vi(0));
 #include "stacky/cops.h"
+  ISN(ifelse): // v t f IFELSE | (t|f)
+    if ( Vi(2) ) {
+      POP(); SWAP(0, 1); POP(); goto eval;
+    } else {
+      SWAP(0, 1); POP(); SWAP(0, 1); POP(); goto eval;
+    }
+  ISN(loop): // e t LOOP |
+  loop_again:
+    PUSH(V(0)); CALLISN(isn_eval);
+    if ( V(0) ) { POP(); PUSH(V(1)); CALLISN(isn_eval); goto loop_again; }
+    POPN(3);
   ISN(ifelser):
     pc += 2;
     pc[-3] = isn_ifelse;
     pc[-2] = (stky_i) (pc + pc[-2]);
     pc[-1] = (stky_i) (pc + pc[-1]);
     pc -= 2;
-    goto I_ifelse;
-  ISN(ifelse):
+    goto I_ifelsej;
+  ISN(ifelsej):
     if ( Vi(0) ) {
       POP(); pc = ((stky_i**) pc)[0];
     } else {
@@ -591,6 +603,22 @@ stky *stky_call(stky *Y, stky_i *pc)
       lookup_done:
       (void) 0;
     }
+  ISN(set): { // v k SET |
+      stky_v k = V(0), v = V(1);
+      int i = Y->dict_stack->l;
+      while ( -- i >= 0 ) {
+        PUSH(Y->v_lookup_na); PUSH(k); PUSH(Y->dict_stack->p[i]); CALLISN(isn_dict_get);
+        if ( V(0) != Y->v_lookup_na ) {
+          PUSH(v); PUSH(k); PUSH(Y->dict_stack->p[i]); CALLISN(isn_dict_set);
+          goto set_done;
+        }
+        POP();
+      }
+      PUSH(Y->v_lookup_na);
+      stky_catch__throw(Y, Y->error_catch, stky_array__new(Y, vp - 1, 2));
+      set_done:
+      (void) 0;
+      }
   ISN(call):
     stky_array_push(Y, &Y->es, pc);
     val = POP();
@@ -828,8 +856,7 @@ stky *stky_repl(stky *Y, FILE *in, FILE *out)
       fprintf(stderr, "ERROR: "); stky_write(Y, stky_top(Y), stderr, 2); fprintf(stderr, "\n");
     }
     stky_catch__END(c);
-    fprintf(stderr, "  =>");
-    stky_print_vs(Y, stderr);
+    // fprintf(stderr, "  =>"); stky_print_vs(Y, stderr);
   }
   return Y;
 }
