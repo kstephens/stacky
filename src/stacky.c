@@ -1018,6 +1018,13 @@ stky *stky_new()
             isn_lit, (stky_i) stky_isn_w(isn_marke),     isn_sym_charP, (stky_i) "{", isn_dict_stack_top, isn_dict_set,
             isn_lit, (stky_i) stky_isn_w(isn_array_tm),  isn_sym_charP, (stky_i) "]", isn_dict_stack_top, isn_dict_set,
             isn_lit, (stky_i) stky_isn_w(isn_array_tme), isn_sym_charP, (stky_i) "}", isn_dict_stack_top, isn_dict_set);
+ 
+  for ( i = 0; Y->types[i].name; ++ i ) {
+    char name[32];
+    sprintf(name, "&$%s", Y->types[i].name);
+    stky_exec(Y,
+              isn_lit, (stky_i) &Y->types[i], isn_sym_charP, (stky_i) name, isn_dict_stack_top, isn_dict_set);
+  }
 
   for ( i = 0; isn_defs[i].name; ++ i ) {
     stky_i isn = isn_defs[i].isn;
