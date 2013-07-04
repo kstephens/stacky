@@ -279,7 +279,7 @@ stky *stky_call(stky *Y, stky_i *pc)
 #if 0
   if ( ! Y->isns[0].addr ) {
     struct isn_def *isn;
-#define ISN(name,lits) isn = &Y->isns[isn_##name]; isn->addr = &&L_##name;
+#define ISN(name,lits) isn = &Y->isns[isn_##name]; isn->addr = &&I_##name;
 #include "stacky/isns.h"
     Y->isns[0].addr = (void*) i;
   }
@@ -373,9 +373,9 @@ stky *stky_call(stky *Y, stky_i *pc)
     }
     abort();
 
-  case 0: goto L_rtn;
+  case 0: goto I_rtn;
 // #include "isns.c"
-#define ISN(name) goto next_isn; case isn_##name: L_##name
+#define ISN(name) goto next_isn; case isn_##name: I_##name
   ISN(nul):   abort();
   ISN(hdr):
   ISN(hdr_):
@@ -419,7 +419,7 @@ stky *stky_call(stky *Y, stky_i *pc)
     pc[-2] = (stky_i) (pc + pc[-2]);
     pc[-1] = (stky_i) (pc + pc[-1]);
     pc -= 2;
-    goto L_ifelse;
+    goto I_ifelse;
   ISN(ifelse):
     if ( Vi(0) ) {
       POP(); pc = ((stky_i**) pc)[0];
@@ -444,7 +444,7 @@ stky *stky_call(stky *Y, stky_i *pc)
     fprintf(Vt(0,FILE*), "%c", (int) stky_v_char_(V(1))); POPN(2);
   ISN(write_symbol): {
       stky_symbol *s = Vt(1,stky_symbolP); 
-      V(1) = s->name; goto L_write_string; }
+      V(1) = s->name; goto I_write_string; }
   ISN(write_string): { 
       stky_string *s = Vt(1,stky_stringP); 
       fwrite(s->b, 1, s->l, Vt(0,FILE*)); (void) POPN(2); }
