@@ -347,6 +347,10 @@ stky *stky_call(stky *Y, stky_i *pc)
     if ( Y->defer_eval > 0 ) {
       if ( val == Y->s_marke )     Y->defer_eval ++; else
       if ( val == Y->s_array_tme ) Y->defer_eval --;
+    } else {
+      if ( val == Y->s_marke && ! Y->defer_eval ++ ) { 
+        PUSH(Y->v_marke); goto next_isn;
+      }
     }
     if ( Y->defer_eval > 0 ) {
       PUSH(val); goto next_isn;
@@ -459,7 +463,7 @@ stky *stky_call(stky *Y, stky_i *pc)
   ISN(cve):       Vt(0, stky_object*)->flags |= 1;
   ISN(eval):      val = POP(); goto eval;
   ISN(mark):      PUSH(Y->v_mark);
-  ISN(marke):     PUSH(Y->v_marke); Y->defer_eval ++;
+  ISN(marke):     PUSH(Y->v_marke);
   ISN(ctm): {
       size_t n = 0; stky_v *p = vp;
       while ( p >= Y->vs.p ) {
