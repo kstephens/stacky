@@ -683,6 +683,7 @@ stky *stky_call(stky *Y, stky_i *pc)
       stky_catch *c = POP();
       stky_catch__throw(Y, c, POP());
     }
+  ISN(error_catch): PUSH(Y->error_catch);
   ISN(END): goto rtn;
   }
 #undef ISN

@@ -72,6 +72,7 @@ ISN(c_proc,2)
 ISN(c_func,2)
 ISN(catch,1)
 ISN(throw,1)
+ISN(error_catch,1)
 
 #define BOP(name,op) ISN(name,1)
 #define UOP(name,op) ISN(name,1)
