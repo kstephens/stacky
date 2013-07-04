@@ -254,6 +254,7 @@ stky *stky_call(stky *Y, stky_i *pc)
 #define PUSHt(X,T) PUSH((stky_v) (X))
 #define POP() stky_pop(Y)
 #define POPN(N) stky_popn(Y, (N))
+#define swap(a,b) ({ __typeof__(a) __tmp##__LINE__ = a; a = b; b = __tmp##__LINE__; })
 #define SWAP(a,b) { val = V(a); V(a) = V(b); V(b) = val; }
 #define vp (Y->vs.p + (Y->vs.l - 1))
 #define V(i) vp[- (i)]
@@ -527,6 +528,10 @@ stky *stky_call(stky *Y, stky_i *pc)
         if ( Vi(0) ) {
           POP();
           v = d->a.p[i + 1];
+          if ( i ) {
+            swap(d->a.p[0], d->a.p[i]);
+            swap(d->a.p[1], d->a.p[i + 1]);
+          }
           break;
         }
         POP();
@@ -544,6 +549,10 @@ stky *stky_call(stky *Y, stky_i *pc)
         if ( Vi(0) ) {
           POP();
           d->a.p[i + 1] = v;
+          if ( i ) {
+            swap(d->a.p[0], d->a.p[i]);
+            swap(d->a.p[1], d->a.p[i + 1]);
+          }
           goto dict_set_done;
         }
         POP();
@@ -674,6 +683,7 @@ stky *stky_call(stky *Y, stky_i *pc)
   return Y;
 }
 #undef vp
+#undef swap
 
 static
 const char *char_to_str(int c)
