@@ -11,6 +11,7 @@ static stky_isn isn_defs[] = {
 #if 0
 #define stky_malloc(S)    GC_malloc(S)
 #define stky_realloc(P,S) GC_realloc(P,S)
+#define stky_free(P)      GC_free(P)
 #else
 void *stky_malloc_(size_t s, const char *file, int line)
 {
@@ -26,8 +27,14 @@ void *stky_realloc_(void *o, size_t s, const char *file, int line)
   // fprintf(stderr, "  stky_realloc(%p, %lu) => %p \t %s:%d\n", o, (unsigned long) s, p, file, line);
   return p;
 }
+void stky_free_(void *p, const char *file, int line)
+{
+  GC_free(p);
+  // fprintf(stderr, "  stky_malloc(%lu) => %p     \t %s:%d\n", (unsigned long) s, p, file, line);
+}
 #define stky_malloc(S)    stky_malloc_(S, __FILE__, __LINE__)
 #define stky_realloc(P,S) stky_realloc_(P,S, __FILE__, __LINE__)
+#define stky_free(P)      stky_free_(P, __FILE__, __LINE__)
 #endif
 
 stky_v stky_object_init(stky *y, void *p, stky_type *type, size_t size)
@@ -469,9 +476,9 @@ stky *stky_call(stky *Y, stky_i *pc)
       fwrite(s->p, 1, s->l, Vt(0,stky_io*)->fp); POPN(2); }
   ISN(write_voidP):
     fprintf(Vt(0,stky_io*)->fp, "@%p", Vt(1,voidP)); POPN(2);
-  ISN(c_malloc):  Vt(0,voidP) = malloc(Vi(0));
-  ISN(c_realloc): Vt(1,voidP) = realloc(Vt(1,voidP), Vi(0)); POP();
-  ISN(c_free):    free(Vt(0,voidP)); POP();
+  ISN(c_malloc):  Vt(0,voidP) = stky_malloc(Vi(0));
+  ISN(c_realloc): Vt(1,voidP) = stky_realloc(Vt(1,voidP), Vi(0)); POP();
+  ISN(c_free):    stky_free(Vt(0,voidP)); POP();
   ISN(c_memmove): memmove(Vt(2,voidP), Vt(1,voidP), Vi(0)); POPN(3);
   ISN(v_tag):     V(0) = stky_v_int(stky_v_tag(V(0)));
   ISN(v_type):    V(0) = stky_v_type(V(0));
