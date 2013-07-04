@@ -873,7 +873,7 @@ stky *stky_repl(stky *Y, FILE *in, FILE *out)
     }
     stky_catch__THROWN(c) {
       PUSH(c->value);
-      fprintf(stderr, "ERROR: "); stky_write(Y, stky_top(Y), stderr, 2); fprintf(stderr, "\n");
+      fprintf(stderr, "ERROR: "); stky_write(Y, stky_top(Y), stderr, 10); fprintf(stderr, "\n");
     }
     stky_catch__END(c);
     // fprintf(stderr, "  =>"); stky_print_vs(Y, stderr);
@@ -891,7 +891,7 @@ stky *stky_write(stky *Y, stky_v v, FILE *out, int depth)
   is_dict = 0;
   switch ( stky_v_type_i(v) ) {
   case stky_t_null:
-    fprintf(out, "@x0:$null"); break;
+    fprintf(out, "@0x0:$null"); break;
   case stky_t_mark:
     fprintf(out, "%s", ((stky_string*) v)->p); break;
   case stky_t_int:
@@ -916,7 +916,7 @@ stky *stky_write(stky *Y, stky_v v, FILE *out, int depth)
     if ( depth < 2 ) goto shallow;
     {
     stky_array *a = v;
-    fprintf(out, "@%p:", v);
+    // fprintf(out, "@%p:", v);
     if ( v == Y->sym_dict ) {
       fprintf(out, "<sym_dict>");
     } else if ( v == Y->dict_0 ) {
