@@ -108,6 +108,14 @@ stacky_array *stacky_array_init(stacky *Y, stacky_array *a, size_t s)
   stacky_bytes_init(Y, (void*) a, sizeof(a->p[0]), s);
   return a;
 }
+stacky_array *stky_array__new(stacky *Y, stky_v *p, size_t s)
+{
+  stacky_array *o = (void*) stky_object_new(Y, stky_t(array), sizeof(*o));
+  stacky_array_init(Y, o, s);
+  if ( p ) memcpy(o->p, p, sizeof(o->p[0]) * s);
+  o->l = s;
+  return o;
+}
 
 stacky_words *stacky_words_init(stacky *Y, stacky_words *a, size_t s)
 {
@@ -176,6 +184,38 @@ stky_v stky_array_push(stacky *Y, stacky_array *o, stky_v v)
   return o->p[o->l ++] = v;
 }
 
+stky_catch *stky_catch__new(stacky *Y)
+{
+  stky_catch *c = stky_object_new(Y, stky_t(catch), sizeof(*c));
+  c->prev = Y->current_catch; // NOT THREAD-SAFE
+  Y->current_catch = c; // NOT THREAD-SAFE
+  c->thrown = stky_v_int(0);
+  c->value = 0;
+  c->vs_depth = stky_v_int(Y->vs.l);
+  c->es_depth = stky_v_int(Y->es.l);
+  c->prev_error_catch = Y->error_catch; // NOT THREAD-SAFE
+  return c;
+}
+
+void stky_catch__throw(stacky *Y, stky_catch *c, stky_v value)
+{
+  {
+    stky_catch *o = Y->current_catch;
+    while ( o && o != c ) {
+      o->thrown = stky_v_int(2); // ABORTED
+      o = o->prev;
+    }
+  }
+  Y->current_catch = c->prev;
+  if ( stky_v_int_(c->thrown) ) abort();
+  c->value  = value;
+  c->thrown = stky_v_int(1);
+  Y->vs.l = stky_v_int_(c->vs_depth);
+  Y->es.l = stky_v_int_(c->es_depth);
+  Y->error_catch = c->prev_error_catch;
+  siglongjmp(c->jb, 1);
+}
+
 stky_v stky_top(stacky *Y) { return stky_array_top(Y, &Y->vs); }
 stky_v stky_top_(stacky *Y, stky_v v) { return stky_array_top_(Y, &Y->vs, v); }
 stky_v stky_push(stacky *Y, stky_v v) { 
@@ -212,6 +252,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
 #define PUSHt(X,T) PUSH((stky_v) (X))
 #define POP() stky_pop(Y)
 #define POPN(N) stky_popn(Y, (N))
+#define SWAP(a,b) { val = V(a); V(a) = V(b); V(b) = val; }
 #define vp (Y->vs.p + (Y->vs.l - 1))
 #define V(i) vp[- (i)]
 #define Vt(i,t) (*((t*) (vp - (i))))
@@ -355,7 +396,7 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
   ISN(dup):   PUSH(V(0));
   ISN(pop):   POP();
   ISN(popn):  val = POP(); POPN(stky_v_int_(val));
-  ISN(swap):  val = V(0); V(0) = V(1); V(1) = val;
+  ISN(swap):  SWAP(0, 1);
   ISN(rotl): { 
       size_t n = Vi(0); POP();
       // 3 2 1 0 n | 2 1 0 3 : n = 4
@@ -538,8 +579,9 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
         }
         POP();
       }
-      V(0) = Y->v_lookup_na;
-    lookup_done:
+      PUSH(Y->v_lookup_na);
+      stky_catch__throw(Y, Y->error_catch, stky_array__new(Y, vp - 1, 2));
+      lookup_done:
       (void) 0;
     }
   ISN(call):
@@ -569,6 +611,24 @@ stacky *stacky_call(stacky *Y, stky_i *pc)
     case 2:
       V(2) = ((stky_v (*)(stky_v, stky_v)) V(0)) (V(2), V(1)); POPN(2); break;
     default: abort();
+    }
+  ISN(catch): { // body thrown CATCH
+      stky_catch__BODY(c) {
+        val = V(1);
+        PUSH(val); CALLISN(isn_eval);
+        V(2) = V(0);
+        POPN(2);
+      }
+      stky_catch__THROWN(c) {
+        SWAP(0, 1); POP();
+        PUSH(c->value);
+        PUSH(val); CALLISN(isn_eval);
+      }
+      stky_catch__END(c);
+    }
+  ISN(throw): {
+      stky_catch *c = POP();
+      stky_catch__throw(Y, c, POP());
     }
   ISN(END): goto rtn;
   }
@@ -744,13 +804,22 @@ stacky *stky_repl(stacky *Y, FILE *in, FILE *out)
 {
   int c = 0;
   while ( ! feof(in) ) {
-    stky_read_token(Y, in);
-    switch ( stky_v_int_(stky_pop(Y)) ) {
-    case s_eos:
-      break;
-    default:
-      stky_exec(Y, isn_eval);
+    stky_catch__BODY(c) {
+      Y->error_catch = c;
+      stky_read_token(Y, in);
+      switch ( stky_v_int_(stky_pop(Y)) ) {
+      case s_eos:
+        break;
+      default: {
+        stky_exec(Y, isn_eval);
+      }
+      }
     }
+    stky_catch__THROWN(c) {
+      PUSH(c->value);
+      fprintf(stderr, "ERROR: "); stky_write(Y, stky_top(Y), stderr, 2); fprintf(stderr, "\n");
+    }
+    stky_catch__END(c);
     fprintf(stderr, "  =>");
     stky_print_vs(Y, stderr);
   }
@@ -907,7 +976,7 @@ stacky *stacky_new()
             isn_dict_stack_top, isn_sym_charP, (stky_i) "{", isn_lit, stky_isn_w(isn_marke), isn_dict_set, isn_pop,
             isn_dict_stack_top, isn_sym_charP, (stky_i) "]", isn_lit, stky_isn_w(isn_array_tm),  isn_dict_set, isn_pop,
             isn_dict_stack_top, isn_lit, (stky_i) Y->s_array_tme, isn_lit, stky_isn_w(isn_array_tme), isn_dict_set, isn_pop);
-            
+
   fprintf(stderr, "\n\n dict_stack:\n");
   stky_write(Y, Y->dict_stack, stderr, 9999);
   fprintf(stderr, "\n\n");

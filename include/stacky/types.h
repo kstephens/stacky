@@ -13,4 +13,5 @@ TYPE(bytes)
 TYPE(words)
 TYPE(mark)
 TYPE(ref)
+TYPE(catch)
 #undef TYPE

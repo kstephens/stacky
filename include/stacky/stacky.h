@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <setjmp.h>
 
 typedef void *voidP;
 typedef char *charP;
@@ -83,6 +84,15 @@ typedef struct stacky_literal {
 } stacky_literal;
 typedef stacky_literal *stacky_literalP;
 
+typedef struct stky_catch {
+  stacky_object o;
+  jmp_buf jb;
+  stky_v thrown, value;
+  stky_v vs_depth, es_depth;
+  struct stky_catch *prev, *prev_error_catch;
+} stky_catch;
+typedef stky_catch *stky_catchP;
+
 #define stky_v_bits 2
 #define stky_v_mask 3
 #define stky_v_tag(V)  (((stky_i) (V)) & 3)
@@ -125,6 +135,8 @@ typedef struct stacky {
   stacky_isn isns[isn_END + 1];
 #define stky_isn_w(I) ((stky_i) Y->isns[I].words)
   stky_i defer_eval;
+  stky_catch *current_catch, *error_catch;
+  stky_v not_found;
 } stacky;
 
 stacky *stacky_new();
@@ -141,5 +153,19 @@ stky_v stky_read_token(stacky *Y, FILE *in);
 stacky *stky_repl(stacky *Y, FILE *in, FILE *out);
 
 stacky *stky_write(stacky *Y, stky_v v, FILE *out, int depth);
+
+#define stky_catch__BODY(NAME) {                \
+  stky_catch *NAME = stky_catch__new(Y);        \
+  switch ( sigsetjmp(NAME->jb, 1) ) {           \
+  case 0:
+#define stky_catch__THROWN(NAME)                          \
+  break;                                                  \
+  default:
+#define stky_catch__END(NAME)                           \
+  break;                                                \
+  }                                                     \
+}
+stky_catch *stky__catch__new(stacky *Y);
+void stky_catch__throw(stacky *Y, stky_catch *catch, stky_v value);
 
 #endif
