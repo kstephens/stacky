@@ -17,3 +17,15 @@
 " &v_stdout &write_string
 } `. def
 
+{ # desc ERROR |  
+  [ swap `error ] &error_catch &throw
+} `&error def
+
+{ # val type TYPECHECK |
+   swap          # type val 
+   1 vget        # type val type
+   swap          # type type val
+   &v_type       # type type type(val)
+   eqw           # type type==type(val)
+   { pop } { [ swap `typecheck ] &error } ifelse
+} `&typecheck def
