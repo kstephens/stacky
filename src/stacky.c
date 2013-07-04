@@ -390,36 +390,40 @@ stky *stky_call(stky *Y, stky_i *pc)
 
   case 0: goto I_rtn;
 // #include "isns.c"
-#define ISN(name) goto next_isn; case isn_##name: I_##name
-  ISN(nul):   abort();
-  ISN(hdr):
-  ISN(hdr_):
-  ISN(nop):
-  ISN(lit):       PUSH((stky_v) *(pc ++));
-  ISN(lit_int):   PUSH(stky_v_int(*(pc ++)));
-  ISN(lit_charP):
+#ifdef ISN_DEF
+#define ISN(name,nwords) ISN(name,nwords)
+#else
+#define ISN(name,nwords) goto next_isn; case isn_##name: I_##name
+#endif
+  ISN(nul,1):   abort();
+  ISN(hdr,1):
+  ISN(hdr_,1):
+  ISN(nop,1):
+  ISN(lit,2):       PUSH((stky_v) *(pc ++));
+  ISN(lit_int,2):   PUSH(stky_v_int(*(pc ++)));
+  ISN(lit_charP,2):
     val = stky_string_new_charP(Y, (void*) *(pc ++), -1);
     pc[-2] = isn_lit; pc[-1] = (stky_i) val;
     PUSH(val);
-  ISN(lit_voidP): PUSHt(*(pc ++),voidP);
-  ISN(eqw): {
+  ISN(lit_voidP,2): PUSHt(*(pc ++),voidP);
+  ISN(eqw,1): {
       V(1) = stky_v_int(V(1) == V(0));
       POP();
     }
-  ISN(string_eq): {
+  ISN(string_eq,1): {
       stky_string *a = V(1), *b = V(0);
       POP();
       V(0) = stky_v_int(a == b || (a->l == b->l && ! memcmp(a->p, b->p, a->l)));
     }
-  ISN(vget): // ... 2 1 0 n=1 VGET | 1
+  ISN(vget,1): // ... 2 1 0 n=1 VGET | 1
     V(0) = V(Vi(0) + 1);
-  ISN(vset): // ... 2 1 0 v n=1 VSET | ... 2 v 0 
+  ISN(vset,1): // ... 2 1 0 v n=1 VSET | ... 2 v 0 
     V(Vi(0) + 2) = V(1); POPN(2);
-  ISN(dup):   PUSH(V(0));
-  ISN(pop):   POP();
-  ISN(popn):  val = POP(); POPN(stky_v_int_(val));
-  ISN(swap):  SWAP(0, 1);
-  ISN(rotl): { 
+  ISN(dup,1):   PUSH(V(0));
+  ISN(pop,1):   POP();
+  ISN(popn,1):  val = POP(); POPN(stky_v_int_(val));
+  ISN(exch,1):  SWAP(0, 1);
+  ISN(rotl,1): { 
       size_t n = Vi(0); POP();
       // 3 2 1 0 n | 2 1 0 3 : n = 4
       //       ^
@@ -427,68 +431,68 @@ stky *stky_call(stky *Y, stky_i *pc)
       memmove(&V(n - 1), &V(n - 2), sizeof(V(0)) * (n - 1));
       V(0) = tmp;
     }
-#define BOP(name, op) ISN(name): V(1) = stky_v_int(Vi(1) op Vi(0)); POP();
-#define UOP(name, op) ISN(name): V(0) = stky_v_int(op Vi(0));
+#define BOP(name,op) ISN(name,1): V(1) = stky_v_int(Vi(1) op Vi(0)); POP();
+#define UOP(name,op) ISN(name,1): V(0) = stky_v_int(op Vi(0));
 #include "stacky/cops.h"
-  ISN(ifelse): // v t f IFELSE | (t|f)
+  ISN(ifelse,1): // v t f IFELSE | (t|f)
     if ( Vi(2) ) {
       POP(); SWAP(0, 1); POP(); CALLISN(isn_eval);
     } else {
       SWAP(0, 1); POP(); SWAP(0, 1); POP(); CALLISN(isn_eval);
     }
-  ISN(loop): // e t LOOP |
+  ISN(loop,1): // e t LOOP |
   loop_again:
     PUSH(V(0)); CALLISN(isn_eval);
     if ( V(0) ) { POP(); PUSH(V(1)); CALLISN(isn_eval); goto loop_again; }
     POPN(3);
-  ISN(ifelser):
+  ISN(ifelser,3):
     pc += 2;
     pc[-3] = isn_ifelse;
     pc[-2] = (stky_i) (pc + pc[-2]);
     pc[-1] = (stky_i) (pc + pc[-1]);
     pc -= 2;
     goto I_ifelsej;
-  ISN(ifelsej):
+  ISN(ifelsej,3):
     if ( Vi(0) ) {
       POP(); pc = ((stky_i**) pc)[0];
     } else {
       POP(); pc = ((stky_i**) pc)[1];
     }
-  ISN(jmpr):
+  ISN(jmpr,2):
     ++ pc;
     pc[-2] = isn_jmp;
     pc[-1] = (stky_i) (pc + pc[-1]);
     pc = (stky_i*) pc[-1];
-  ISN(jmp):
+  ISN(jmp,2):
     pc = (stky_i*) pc[0];
-  ISN(v_stdin):  PUSH(Y->v_stdin);
-  ISN(v_stdout): PUSH(Y->v_stdout);
-  ISN(v_stderr): PUSH(Y->v_stderr);
-  ISN(write):
+  ISN(v_stdin,1):  PUSH(Y->v_stdin);
+  ISN(v_stdout,1): PUSH(Y->v_stdout);
+  ISN(v_stderr,1): PUSH(Y->v_stderr);
+  ISN(write,1):
     stky_write(Y, V(1), Vt(0,stky_io*)->fp, 9999); POPN(2);
-  ISN(write_int):
+  ISN(write_int,1):
     fprintf(Vt(0,stky_io*)->fp, "%lld", (long long) Vi(1)); POPN(2);
-  ISN(write_char):
+  ISN(write_char,1):
     fprintf(Vt(0,stky_io*)->fp, "%c", (int) stky_v_char_(V(1))); POPN(2);
-  ISN(write_symbol): {
+  ISN(write_symbol,1): {
       stky_symbol *s = Vt(1,stky_symbolP); 
       V(1) = s->name; goto I_write_string; }
-  ISN(write_string): { 
+  ISN(write_string,1): { 
       stky_string *s = Vt(1,stky_stringP); 
       fwrite(s->p, 1, s->l, Vt(0,stky_io*)->fp); POPN(2); }
-  ISN(write_voidP):
+  ISN(write_voidP,1):
     fprintf(Vt(0,stky_io*)->fp, "@%p", Vt(1,voidP)); POPN(2);
-  ISN(c_malloc):  Vt(0,voidP) = stky_malloc(Vi(0));
-  ISN(c_realloc): Vt(1,voidP) = stky_realloc(Vt(1,voidP), Vi(0)); POP();
-  ISN(c_free):    stky_free(Vt(0,voidP)); POP();
-  ISN(c_memmove): memmove(Vt(2,voidP), Vt(1,voidP), Vi(0)); POPN(3);
-  ISN(v_tag):     V(0) = stky_v_int(stky_v_tag(V(0)));
-  ISN(v_type):    V(0) = stky_v_type(V(0));
-  ISN(cve):       Vt(0, stky_object*)->flags |= 1;
-  ISN(eval):      val = POP(); goto eval;
-  ISN(mark):      PUSH(Y->v_mark);
-  ISN(marke):     PUSH(Y->v_marke);
-  ISN(ctm): {
+  ISN(c_malloc,1):  Vt(0,voidP) = stky_malloc(Vi(0));
+  ISN(c_realloc,1): Vt(1,voidP) = stky_realloc(Vt(1,voidP), Vi(0)); POP();
+  ISN(c_free,1):    stky_free(Vt(0,voidP)); POP();
+  ISN(c_memmove,1): memmove(Vt(2,voidP), Vt(1,voidP), Vi(0)); POPN(3);
+  ISN(v_tag,1):     V(0) = stky_v_int(stky_v_tag(V(0)));
+  ISN(v_type,1):    V(0) = stky_v_type(V(0));
+  ISN(cve,1):       Vt(0, stky_object*)->flags |= 1;
+  ISN(eval,1):      val = POP(); goto eval;
+  ISN(mark,1):      PUSH(Y->v_mark);
+  ISN(marke,1):     PUSH(Y->v_marke);
+  ISN(ctm,1): {
       size_t n = 0; stky_v *p = vp;
       while ( p >= Y->vs.p ) {
         if ( *p == Y->v_mark || *p == Y->v_marke ) break;
@@ -497,40 +501,41 @@ stky *stky_call(stky *Y, stky_i *pc)
       }
       PUSH(stky_v_int(n));
     }
-  ISN(array_stk): {
+  ISN(array_stk,1): {
       size_t as = stky_v_int_(POP());
       stky_array *a = stky_array_init(Y, stky_object_new(Y, stky_t(array), sizeof(*a)), as);
       // fprintf(stderr, "   %lu array_stk => @%p\n", as, a);
       memmove(a->p, POPN(a->l = as), sizeof(a->p[0]) * as);
       V(0) = a;
     }
-  ISN(array_new):
+  ISN(array_new,1):
       Vt(0,stky_arrayP) =
         stky_array_init(Y, stky_object_new(Y, stky_t(array), sizeof(stky_array)), Vi(0));
-  ISN(array_tm):
+  ISN(array_tm,1):
       stky_exec(Y, isn_ctm, isn_array_stk);
-  ISN(array_tme):
+  ISN(array_tme,1):
       stky_exec(Y, isn_ctm, isn_array_stk, isn_cve);
-  ISN(array_b):  V(0) = Vt(0,stky_arrayP)->b;
-  ISN(array_p):  V(0) = Vt(0,stky_arrayP)->p;
-  ISN(array_l):  V(0) = stky_v_int(Vt(0,stky_arrayP)->l);
-  ISN(array_s):  V(0) = stky_v_int(Vt(0,stky_arrayP)->s);
-  ISN(array_es): V(0) = stky_v_int(Vt(0,stky_arrayP)->es);
-  ISN(array_get):  V(1) = Vt(0,stky_arrayP)->p[Vi(1)]; POP();
-  ISN(array_set):  Vt(0,stky_arrayP)->p[Vi(1)] = V(2); POPN(2);
-  ISN(array_push): // v a ARRAY_PUSH |
+  ISN(array_b,1):  V(0) = Vt(0,stky_arrayP)->b;
+  ISN(array_p,1):  V(0) = Vt(0,stky_arrayP)->p;
+  ISN(array_l,1):  V(0) = stky_v_int(Vt(0,stky_arrayP)->l);
+  ISN(array_s,1):  V(0) = stky_v_int(Vt(0,stky_arrayP)->s);
+  ISN(array_es,1): V(0) = stky_v_int(Vt(0,stky_arrayP)->es);
+  ISN(array_get,1):  V(1) = Vt(0,stky_arrayP)->p[Vi(1)]; POP();
+  ISN(array_set,1):  Vt(0,stky_arrayP)->p[Vi(1)] = V(2); POPN(2);
+  ISN(bytes_dup,1): V(0) = stky_bytes_dup(Y, V(0));
+  ISN(array_push,1): // v a ARRAY_PUSH |
       stky_array_push(Y, V(0), V(1));
       POPN(2);
-  ISN(array_pop): // a ARRAY_POP | a[-- a.l]
+  ISN(array_pop,1): // a ARRAY_POP | a[-- a.l]
       V(0) = stky_array_pop(Y, V(0));
-  ISN(dict_new): {
+  ISN(dict_new,1): {
       stky_dict *d = stky_object_new(Y, stky_t(dict), sizeof(*d));
       stky_array_init(Y, (stky_array*) d, 8);
       d->eq = V(0);
       // fprintf(stderr, "  dict_new %lld\n", (long long) d);
       Vt(0,stky_dictP) = d;
     }
-  ISN(dict_get): { // v k dict DICT_GET | (v|d)
+  ISN(dict_get,1): { // v k dict DICT_GET | (v|d)
       stky_dict *d = Vt(0,stky_dictP);
       stky_v k = V(1), v = V(2);
       size_t i = 0;
@@ -551,7 +556,7 @@ stky *stky_call(stky *Y, stky_i *pc)
       POPN(2);
       V(0) = v;
       }
-  ISN(dict_set): { // v k dict DICT_SET |
+  ISN(dict_set,1): { // v k dict DICT_SET |
       stky_dict *d = Vt(0,stky_dictP);
       stky_v k = V(1), v = V(2);
       size_t i = 0;
@@ -578,7 +583,7 @@ stky *stky_call(stky *Y, stky_i *pc)
       }
       (void) 0;
     }
-  ISN(sym): {
+  ISN(sym,1): {
       stky_string *str = V(0); stky_symbol *sym;
       PUSH(0); PUSH(str); PUSH(Y->sym_dict); CALLISN(isn_dict_get);
       if ( V(0) ) {
@@ -596,18 +601,18 @@ stky *stky_call(stky *Y, stky_i *pc)
       }
       // fprintf(stderr, "  sym %s", str->p); stky_print_vs(Y, stderr); fprintf(stderr, "\n");
     }
-  ISN(sym_charP): {
+  ISN(sym_charP,1): {
       char *str = (void*) *(pc ++);
       stky_string *s = stky_string_new_charP(Y, str, -1);
       PUSH(s); CALLISN(isn_sym);
       pc[-2] = isn_lit;
       pc[-1] = (stky_i) V(0);
     }
-  ISN(sym_dict):   PUSH(Y->sym_dict);
-  ISN(dict_stack): PUSH(Y->dict_stack);
-  ISN(dict_stack_top):
+  ISN(sym_dict,1):   PUSH(Y->sym_dict);
+  ISN(dict_stack,1): PUSH(Y->dict_stack);
+  ISN(dict_stack_top,1):
       PUSH(stky_array_top(Y, Y->dict_stack));
-  ISN(lookup): {
+  ISN(lookup,1): {
       stky_v k = V(0);
       int i = Y->dict_stack->l;
       while ( -- i >= 0 ) {
@@ -623,7 +628,7 @@ stky *stky_call(stky *Y, stky_i *pc)
       lookup_done:
       (void) 0;
     }
-  ISN(set): { // v k SET |
+  ISN(set,1): { // v k SET |
       stky_v k = V(0), v = V(1);
       int i = Y->dict_stack->l;
       while ( -- i >= 0 ) {
@@ -639,15 +644,15 @@ stky *stky_call(stky *Y, stky_i *pc)
       set_done:
       (void) 0;
       }
-  ISN(call):
+  ISN(call,1):
     stky_array_push(Y, &Y->es, pc);
     val = POP();
     goto eval;
-  ISN(rtn):
+  ISN(rtn,1):
     if ( Y->es.l <= es_i ) goto rtn;
     pc = stky_array_pop(Y, &Y->es);
-  ISN(Y): PUSH((stky_v) Y);
-  ISN(c_proc):
+  ISN(Y,1): PUSH((stky_v) Y);
+  ISN(c_proc,2):
     switch ( *(pc ++) ) {
     case 0:
       ((void (*)()) V(0)) (); POPN(1); break;
@@ -657,7 +662,7 @@ stky *stky_call(stky *Y, stky_i *pc)
       ((void (*)(stky_v, stky_v)) V(0)) (V(2), V(1)); POPN(3); break;
     default: abort();
     }
-  ISN(c_func):
+  ISN(c_func,2):
     switch ( *(pc ++) ) {
     case 0:
       V(0) = ((stky_v (*)()) V(0)) (); break;
@@ -667,7 +672,7 @@ stky *stky_call(stky *Y, stky_i *pc)
       V(2) = ((stky_v (*)(stky_v, stky_v)) V(0)) (V(2), V(1)); POPN(2); break;
     default: abort();
     }
-  ISN(catch): { // body thrown CATCH
+  ISN(catch,1): { // body thrown CATCH
       stky_catch__BODY(c) {
         val = V(1);
         PUSH(val); CALLISN(isn_eval);
@@ -681,12 +686,12 @@ stky *stky_call(stky *Y, stky_i *pc)
       }
       stky_catch__END(c);
     }
-  ISN(throw): {
+  ISN(throw,1): {
       stky_catch *c = POP();
       stky_catch__throw(Y, c, POP());
     }
-  ISN(error_catch): PUSH(Y->error_catch);
-  ISN(END): goto rtn;
+  ISN(error_catch,1): PUSH(Y->error_catch);
+  ISN(END,1): goto rtn;
   }
 #undef ISN
 
