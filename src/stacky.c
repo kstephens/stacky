@@ -812,6 +812,7 @@ stky *stky_repl(stky *Y, FILE *in, FILE *out)
       stky_read_token(Y, in);
       switch ( stky_v_int_(stky_pop(Y)) ) {
       case s_eos:
+        stky_pop(Y);
         break;
       default: {
         stky_exec(Y, isn_eval);
