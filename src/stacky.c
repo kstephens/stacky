@@ -79,9 +79,9 @@ stky_v stky_literal_new(stky *Y, stky_v v)
 
 stky_bytes *stky_bytes_init(stky *Y, stky_bytes *a, size_t es, size_t s)
 {
-  size_t cs;
-  a->p = a->b = stky_malloc(cs = (a->es = es) * ((a->s = s) + 1));
-  memset(a->b, 0, cs);
+  size_t cs = (a->es = es) * ((a->s = s) + 1);
+  a->p = a->b = stky_malloc(cs);
+  memset(a->b, 0, cs); // clear + null terminator
   return a;
 }
 
@@ -106,6 +106,7 @@ stky *stky_bytes_resize(stky *Y, stky_bytes *a, size_t s)
   a->b = nb;
   void *e = a->b + a->es * a->s;
   if ( a->p > e ) a->p = e;
+  memset(e, 0, a->es); // null terminator
   // fprintf(stderr, "  array %p b:s %p:%lu p:l %p:%lu\n\n", a, a->b, (unsigned long) a->s, a->p, (unsigned long) a->l);  
   return Y;
 }
@@ -122,6 +123,7 @@ stky *stky_bytes_append(stky *Y, stky_bytes *a, const void *p, size_t s)
 stky_array *stky_array_init(stky *Y, stky_array *a, size_t s)
 {
   stky_bytes_init(Y, (void*) a, sizeof(a->p[0]), s);
+  a->l = 0;
   return a;
 }
 stky_array *stky_array__new(stky *Y, stky_v *p, size_t s)
@@ -155,9 +157,9 @@ stky_string *stky_string_new_charP(stky *Y, const char *p, size_t s)
   stky_string *o;
   if ( s == (size_t) -1 ) s = strlen(p);
   o = stky_object_new(Y, stky_t(string), sizeof(*o));
-  stky_bytes_init(Y, (void*) o, 1, s);
+  stky_bytes_init(Y, (void*) o, sizeof(o->p[0]), s);
   o->o.type = stky_t(string);
-  if ( p ) memcpy(o->b, p, s);
+  if ( p ) memcpy(o->p, p, sizeof(p[0]) * s);
   o->l = s;
   return o;
 }
@@ -981,9 +983,11 @@ stky *stky_new()
   GC_init();
   Y = stky_object_new(Y, 0, sizeof(*Y));
   Y->o.type = stky_t(stky);
+  Y->trace = Y->token_debug = Y->defer_eval = 0;
 
   {
     stky_type *t;
+    memset(Y->types, 0, sizeof(Y->types));
 #define TYPE(NAME)                                              \
     t = &Y->types[stky_t_##NAME];                               \
     stky_object_init(Y, t, stky_t(type), sizeof(*t));           \
