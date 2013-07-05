@@ -532,7 +532,7 @@ stky *stky_call(stky *Y, stky_i *pc)
   ISN(array_es,1): V(0) = stky_v_int(Vt(0,stky_arrayP)->es);
   ISN(array_get,1):  V(1) = Vt(0,stky_arrayP)->p[Vi(1)]; POP();
   ISN(array_set,1):  Vt(0,stky_arrayP)->p[Vi(1)] = V(2); POPN(2);
-  ISN(bytes_dup,1): V(0) = stky_bytes_dup(Y, V(0));
+  ISN(bytes_dup,1):  V(0) = stky_bytes_dup(Y, V(0));
   ISN(array_push,1): // v a ARRAY_PUSH |
       stky_array_push(Y, V(0), V(1));
       POPN(2);
@@ -618,10 +618,9 @@ stky *stky_call(stky *Y, stky_i *pc)
       pc[-2] = isn_lit;
       pc[-1] = (stky_i) V(0);
     }
-  ISN(sym_dict,1):   PUSH(Y->sym_dict);
-  ISN(dict_stack,1): PUSH(Y->dict_stack);
-  ISN(dict_stack_top,1):
-      PUSH(stky_array_top(Y, Y->dict_stack));
+  ISN(sym_dict,1):    PUSH(Y->sym_dict);
+  ISN(dict_stack,1):  PUSH(Y->dict_stack);
+  ISN(dict_stack_top,1):  PUSH(stky_array_top(Y, Y->dict_stack));
   ISN(lookup,1): {
       stky_v k = V(0);
       int i = Y->dict_stack->l;
