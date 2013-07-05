@@ -6,6 +6,7 @@
 static stky_isn isn_defs[] = {
 #define ISN(name,nwords) { { 0 }, -1, isn_##name, nwords, #name, "&&" #name },
 #include "stacky/isns.h"
+#undef ISN
   { 0, 0, 0, 0 },
 };
 
