@@ -19,14 +19,12 @@ static stky_isn isn_defs[] = {
 #ifdef stky_DEBUG_ALLOC
 void *stky_malloc_(size_t s, const char *file, int line)
 {
-  // if ( s > 1000000 ) abort();
   void *p = GC_malloc(s);
   // fprintf(stderr, "  stky_malloc(%lu) => %p     \t %s:%d\n", (unsigned long) s, p, file, line);
   return p;
 }
 void *stky_realloc_(void *o, size_t s, const char *file, int line)
 {
-  // if ( s > 1000000 ) abort();
   void *p = GC_realloc(o, s);
   // fprintf(stderr, "  stky_realloc(%p, %lu) => %p \t %s:%d\n", o, (unsigned long) s, p, file, line);
   return p;
@@ -60,6 +58,7 @@ stky_v stky_object_new(stky *Y, stky_type *type, size_t size)
 {
   stky_object *o = stky_malloc(size);
   stky_object_init(Y, o, type, size);
+  // fprintf(stderr, "  stky_object_new(%p, %p %s, %lu) => %p\n", Y, type, type ? type->name : "", (unsigned long) size, o);
   return o;
 }
 
