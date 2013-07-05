@@ -9,11 +9,13 @@ static stky_isn isn_defs[] = {
   { 0, 0, 0, 0 },
 };
 
-#if 0
-#define stky_malloc(S)    GC_malloc(S)
-#define stky_realloc(P,S) GC_realloc(P,S)
-#define stky_free(P)      GC_free(P)
+#ifdef stky_NO_GC
+#define stky_malloc(S)    malloc(S)
+#define stky_realloc(P,S) realloc(P,S)
+#define stky_free(P)      free(P)
+#define GC_init()         ((void) 0)
 #else
+#ifdef stky_DEBUG_ALLOC
 void *stky_malloc_(size_t s, const char *file, int line)
 {
   // if ( s > 1000000 ) abort();
@@ -36,6 +38,11 @@ void stky_free_(void *p, const char *file, int line)
 #define stky_malloc(S)    stky_malloc_(S, __FILE__, __LINE__)
 #define stky_realloc(P,S) stky_realloc_(P,S, __FILE__, __LINE__)
 #define stky_free(P)      stky_free_(P, __FILE__, __LINE__)
+#else
+#define stky_malloc(S)    GC_malloc(S)
+#define stky_realloc(P,S) GC_realloc(P,S)
+#define stky_free(P)      GC_free(P)
+#endif
 #endif
 
 stky_v stky_object_init(stky *y, void *p, stky_type *type, size_t size)
