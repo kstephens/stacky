@@ -141,7 +141,7 @@ typedef struct stky {
   stky_dict *dict_0;
   stky_type types[stky_t_END + 1];
 #define stky_t(name) (Y->types + stky_t_##name)
-  stky_isn isns[isn_END + 1];
+  stky_isn isns[isn_END_ + 1];
 #define stky_isn_w(I) ((stky_i) Y->isns[I].words)
   stky_i defer_eval;
   stky_catch *current_catch, *error_catch;
