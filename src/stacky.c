@@ -425,6 +425,22 @@ stky *stky_call(stky *Y, stky_i *pc)
       POP();
       V(0) = stky_v_int(a == b || (a->l == b->l && ! memcmp(a->p, b->p, a->l)));
     }
+  ISN(eqw_hsh,1): {
+      stky_w h = 0xdeadbeef;
+#define HSH(V) h ^= (stky_w) (V); h ^= h >> 3; h ^= h << 5; h ^= h >> 7; h ^= h << 11;
+      HSH(V(0));
+      V(0) = stky_v_int(h >> 1);
+    }
+  ISN(string_eq_hsh,1): {
+      stky_string *a = V(0);
+      stky_w h = 0xdeadbeef;
+      unsigned char *p = (void*) a->p, *e = p + a->l;
+      while ( p < e ) {
+        HSH(*(p ++));
+      }
+      V(0) = stky_v_int(h >> 1);
+#undef HSH
+    }
   ISN(vget,1): // ... 2 1 0 n=1 VGET | 1
     V(0) = V(Vi(0) + 1);
   ISN(vset,1): // ... 2 1 0 v n=1 VSET | ... 2 v 0 
