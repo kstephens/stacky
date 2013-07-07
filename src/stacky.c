@@ -254,6 +254,7 @@ stky_io *stky_io__new_string(stky *Y, FILE *fp, stky_string *s)
   o->write_string = (stky_v) stky_isn_w(isn_write_string_string);
   o->read_char    = (stky_v) stky_isn_w(isn_read_char_string);
   o->unread_char  = (stky_v) stky_isn_w(isn_unread_char_string);
+  o->close        = (stky_v) stky_isn_w(isn_close_string);
   return o;
 }
 
@@ -271,6 +272,7 @@ stky_io *stky_io__new_FILEP(stky *Y, FILE *fp, const char *name, const char *mod
   o->write_string = (stky_v) stky_isn_w(isn_write_string_FILEP);
   o->read_char    = (stky_v) stky_isn_w(isn_read_char_FILEP);
   o->unread_char  = (stky_v) stky_isn_w(isn_unread_char_FILEP);
+  o->close        = (stky_v) stky_isn_w(isn_close_FILEP);
   return o;
 }
 
@@ -290,6 +292,11 @@ void stky_io__printf(stky *Y, stky_io *io, const char *fmt, ...)
   char buf[1024];
   va_list va; va_start(va, fmt); vsnprintf(buf, sizeof(buf) -1, fmt, va); va_end(va);
   stky_io__write_string(Y, io, buf, strlen(buf));
+}
+
+void stky_io__close(stky *Y, stky_io *io)
+{
+  stky_push(Y, io); stky_exec(Y, isn_close);
 }
 
 static
@@ -612,6 +619,19 @@ stky *stky_call(stky *Y, stky_i *pc)
       stky_string *io = V(0);
       if ( io->p > io->b ) { io->l ++; io->p --; }
       POPN(2);
+    }
+  ISN(close,1): {
+      stky_io *io = Vt(0,stky_io*);
+      PUSH(io->close); CALLISN(isn_eval);
+    }
+  ISN(close_FILEP,1): {
+      stky_io *io = Vt(0,stky_io*);
+      if ( io->opaque ) fclose(io->opaque);
+      io->opaque = 0;
+    }
+  ISN(close_string,1): {
+      stky_io *io = Vt(0,stky_io*);
+      ((stky_string *) io->opaque)->l = 0;
     }
   ISN(c_malloc,1):  Vt(0,voidP) = stky_malloc(Vi(0));
   ISN(c_realloc,1): Vt(1,voidP) = stky_realloc(Vt(1,voidP), Vi(0)); POP();
@@ -1227,13 +1247,9 @@ stky *stky_new(int *argcp, char ***argvp)
     FILE *fp;
 
     fprintf(stderr, "  # reading boot.stky\n");
-    if ( (fp = fopen("boot.stky", "r")) ) {
-      stky_io *io = stky_io__new_FILEP(Y, 0, "boot.stky", "r");
-      stky_repl(Y, io, 0);
-      fclose(fp);
-    } else {
-      perror("cannot read boot.stky");
-    }
+    stky_io *io = stky_io__new_FILEP(Y, 0, "boot.stky", "r");
+    stky_repl(Y, io, 0);
+    stky_io__close(Y, io);
 
     if ( 0 ) {
       fprintf(stderr, "\n\n dict_stack:\n");
