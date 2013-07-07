@@ -1,6 +1,7 @@
 #include "stacky/stacky.h"
 #include "gc/gc.h"
 #include <ctype.h>
+#include <stdarg.h>
 #include <assert.h>
 #include <dlfcn.h>
 
@@ -244,29 +245,85 @@ void stky_catch__throw(stky *Y, stky_catch *c, stky_v value)
   siglongjmp(c->jb, 1);
 }
 
+stky_io *stky_io__new_string(stky *Y, FILE *fp, stky_string *s)
+{
+  stky_io *o = stky_object_new(Y, stky_t(io), sizeof(*o));
+  if ( ! s ) s = stky_string_new_charP(Y, 0, 0);
+  o->opaque = s;
+  o->name = o->mode = 0;
+  o->write_string = (stky_v) stky_isn_w(isn_write_string_string);
+  o->read_char    = (stky_v) stky_isn_w(isn_read_char_string);
+  o->unread_char  = (stky_v) stky_isn_w(isn_unread_char_string);
+  return o;
+}
+
+stky_io *stky_io__new_FILEP(stky *Y, FILE *fp, const char *name, const char *mode)
+{
+  stky_io *o = stky_object_new(Y, stky_t(io), sizeof(*o));
+  if ( ! fp ) { 
+    if ( ! (fp = fopen(name, mode)) ) {
+      perror("Cannot open file");
+    }
+  }
+  o->opaque = fp;
+  o->name = stky_string_new_charP(Y, name, -1);
+  o->mode = stky_string_new_charP(Y, mode, -1);
+  o->write_string = (stky_v) stky_isn_w(isn_write_string_FILEP);
+  o->read_char    = (stky_v) stky_isn_w(isn_read_char_FILEP);
+  o->unread_char  = (stky_v) stky_isn_w(isn_unread_char_FILEP);
+  return o;
+}
+
+stky_v stky_push(stky *Y, stky_v v);
+
+void stky_io__write_string(stky *Y, stky_io *io, const char *p, size_t s)
+{
+  stky_string o;
+  if ( s == -1 ) s = strlen(p);
+  stky_object_init(Y, &o, stky_t(string), sizeof(o));
+  o.p = o.b = (char *) p; o.l = s; o.s = s + 1; o.es = sizeof(p[0]);
+  stky_push(Y, &o); stky_push(Y, io); stky_exec(Y, isn_write_string);
+}
+
+void stky_io__printf(stky *Y, stky_io *io, const char *fmt, ...)
+{
+  char buf[1024];
+  va_list va; va_start(va, fmt); vsnprintf(buf, sizeof(buf) -1, fmt, va); va_end(va);
+  stky_io__write_string(Y, io, buf, strlen(buf));
+}
+
+static
+void stky_print_vs(stky *Y, stky_io *out)
+{
+  size_t i = 0;
+  stky_io__write_string(Y, out, "  # V: ", -1);
+  while ( i < Y->vs.l ) {
+    stky_io__write(Y, out, Y->vs.p[i ++], 2);
+    stky_io__write_string(Y, out, " ", 1);
+  }
+  stky_io__write_string(Y, out, "| \n", 3);
+}
+
+#define fprintf(FP, FMT...) stky_io__printf(Y, Y->v_##FP, ##FMT)
+#define stky_write(Y, FP, V, N) stky_io__write(Y, Y->v_##FP, V, N)
+
+void stky_dict__rehash(stky *Y, stky_dict *o)
+{
+  if ( o->a.o.flags & 2 ) return;
+  o->a.o.flags |= 2;
+}
+
 stky_v stky_top(stky *Y) { return stky_array_top(Y, &Y->vs); }
 stky_v stky_top_(stky *Y, stky_v v) { return stky_array_top_(Y, &Y->vs, v); }
 stky_v stky_push(stky *Y, stky_v v) { 
-  if ( Y->trace > 0 ) { fprintf(stderr, "  # << "); stky_write(Y, v, stderr, 1); fprintf(stderr, "\n"); }
+  if ( Y->trace > 0 ) { fprintf(stderr, "  # << "); stky_write(Y, stderr, v, 1); fprintf(stderr, "\n"); }
   return stky_array_push(Y, &Y->vs, v); }
 stky_v stky_pop(stky *Y) { 
-  if ( Y->trace > 0 ) { fprintf(stderr, "  # >> "); stky_write(Y, stky_top(Y), stderr, 1); fprintf(stderr, "\n"); }
+  if ( Y->trace > 0 ) { fprintf(stderr, "  # >> "); stky_write(Y, stderr, stky_top(Y), 1); fprintf(stderr, "\n"); }
   return stky_array_pop(Y, &Y->vs); }
 stky_v *stky_popn(stky *Y, size_t s ) {
   if ( Y->trace > 0 ) { fprintf(stderr, "  # << # %lu\n", s); }
   return stky_array_popn(Y, &Y->vs, s); }
-
-static
-void stky_print_vs(stky *Y, FILE *out)
-{
-  size_t i = 0;
-  fprintf(out, "  # V: ");
-  while ( i < Y->vs.l ) {
-    stky_write(Y, Y->vs.p[i ++], out, 2);
-    fprintf(out, " ");
-  }
-  fprintf(out, "| \n");
-}
 
 stky *stky_call(stky *Y, stky_i *pc)
 {
@@ -338,7 +395,7 @@ stky *stky_call(stky *Y, stky_i *pc)
         fprintf(stderr, "@%p ", (void*) *(p ++));
       fprintf(stderr, "| \n");
     }
-    stky_print_vs(Y, stderr);
+    stky_print_vs(Y, Y->v_stderr);
     switch ( stky_v_type_i(*pc) ) {
     case stky_t_isn:
     if ( *pc != isn_END ) {
@@ -361,7 +418,7 @@ stky *stky_call(stky *Y, stky_i *pc)
     break;
     default:
       fprintf(stderr, "  # <: ");
-      stky_write(Y, (stky_v) *pc, stderr, 1); 
+      stky_write(Y, stderr, (stky_v) *pc, 1); 
     }
     fprintf(stderr, "\n");
   }
@@ -398,7 +455,7 @@ stky *stky_call(stky *Y, stky_i *pc)
           PUSH(val);
         }
       TYPE(words):
-        // fprintf(stderr, "  # words @%p ", val); stky_write(Y, val, stderr, 2); fprintf(stderr, "\n");
+        // fprintf(stderr, "  # words @%p ", val); stky_write(Y, stderr, val, 2); fprintf(stderr, "\n");
         goto call_array;
       }
 #undef TYPE
@@ -508,19 +565,54 @@ stky *stky_call(stky *Y, stky_i *pc)
   ISN(v_stdout,1): PUSH(Y->v_stdout);
   ISN(v_stderr,1): PUSH(Y->v_stderr);
   ISN(write,1):
-    stky_write(Y, V(1), Vt(0,stky_io*)->fp, 9999); POPN(2);
+    stky_io__write(Y, Vt(0,stky_io*), V(1), 9999); POPN(2);
   ISN(write_int,1):
-    fprintf(Vt(0,stky_io*)->fp, "%lld", (long long) Vi(1)); POPN(2);
+    stky_io__printf(Y, Vt(0,stky_io*), "%lld", (long long) Vi(1)); POPN(2);
   ISN(write_char,1):
-    fprintf(Vt(0,stky_io*)->fp, "%c", (int) stky_v_char_(V(1))); POPN(2);
+    stky_io__printf(Y, Vt(0,stky_io*), "%c", (int) stky_v_char_(V(1))); POPN(2);
   ISN(write_symbol,1): {
-      stky_symbol *s = Vt(1,stky_symbolP); 
+      stky_symbol *s = Vt(1,stky_symbolP);
       V(1) = s->name; goto I_write_string; }
-  ISN(write_string,1): { 
-      stky_string *s = Vt(1,stky_stringP); 
-      fwrite(s->p, 1, s->l, Vt(0,stky_io*)->fp); POPN(2); }
   ISN(write_voidP,1):
-    fprintf(Vt(0,stky_io*)->fp, "@%p", Vt(1,voidP)); POPN(2);
+    stky_io__printf(Y, Vt(0,stky_io*), "@%p", Vt(1,voidP)); POPN(2);
+  ISN(write_string,1): {
+      stky_io *io = Vt(0,stky_io*);
+      PUSH(io->write_string); CALLISN(isn_eval);
+    }
+  ISN(write_string_FILEP,1): {
+      stky_string *s = Vt(1,stky_stringP); 
+      fwrite(s->p, 1, s->l, Vt(0,stky_io*)->opaque); POPN(2); }
+  ISN(write_string_string,1): {
+      stky_string *dst = Vt(0,stky_stringP); 
+      stky_string *s = Vt(1,stky_stringP);
+      stky_string_append(Y, dst, s->p, s->l); POPN(2);
+    }
+  ISN(read_char,1): {
+      stky_io *io = Vt(0,stky_io*);
+      PUSH(io->read_char); CALLISN(isn_eval);
+    }
+  ISN(unread_char,1): {
+      stky_io *io = Vt(0,stky_io*);
+      PUSH(io->unread_char); CALLISN(isn_eval);
+    }
+  ISN(read_char_FILEP,1): {
+      stky_io *io = Vt(0,stky_io*);
+      V(0) = stky_v_char(fgetc(io->opaque));
+    }
+  ISN(unread_char_FILEP,1): {
+      stky_io *io = Vt(0,stky_io*);
+      ungetc(stky_v_char_(V(1)), io->opaque);
+      POPN(2);
+    }
+  ISN(read_char_string,1): {
+      stky_string *io = V(0);
+      V(0) = stky_v_char(io->l > 0 ? (io->l --, *(io->p ++)) : -1);
+    }
+  ISN(unread_char_string,1): {
+      stky_string *io = V(0);
+      if ( io->p > io->b ) { io->l ++; io->p --; }
+      POPN(2);
+    }
   ISN(c_malloc,1):  Vt(0,voidP) = stky_malloc(Vi(0));
   ISN(c_realloc,1): Vt(1,voidP) = stky_realloc(Vt(1,voidP), Vi(0)); POP();
   ISN(c_free,1):    stky_free(Vt(0,voidP)); POP();
@@ -614,7 +706,7 @@ stky *stky_call(stky *Y, stky_i *pc)
     dict_set_done:
       POPN(3);
       if ( 0 && d != Y->sym_dict ) {
-        fprintf(stderr, "  dict_set => "); stky_write(Y, d, stderr, 3); fprintf(stderr, "\n");
+        fprintf(stderr, "  dict_set => "); stky_write(Y, stderr, d, 3); fprintf(stderr, "\n");
       }
       (void) 0;
     }
@@ -772,7 +864,9 @@ enum read_token_state {
     s_string,
 };
 
-stky_v stky_read_token(stky *Y, FILE *in)
+#define fgetc(IO) ({ stky_push(Y, IO); stky_exec(Y, isn_read_char); stky_v_char_(stky_pop(Y)); })
+#define ungetc(C,IO) ({ stky_push(Y, stky_v_char(C)); stky_push(Y, IO); stky_exec(Y, isn_unread_char); })
+stky_v stky_read_token(stky *Y, stky_io *in)
 {
   stky_v value;
   stky_string *token = 0;
@@ -790,7 +884,7 @@ stky_v stky_read_token(stky *Y, FILE *in)
   last_state = last_state_2; last_state_2 = state;
   if ( ! token ) token = stky_string_new_charP(Y, 0, 0);
   if ( c == -2 ) c = fgetc(in);
-  if ( Y->token_debug ) fprintf(stderr, "  c = %s, state = %d, token = '%s'\n", char_to_str(c), state, token->p);
+  if ( Y->token_debug >= 2 ) fprintf(stderr, "  c = %s, state = %d, token = '%s'\n", char_to_str(c), state, token->p);
   switch ( state ) {
   case s_error:
     stky_string_append_char(Y, token, c);
@@ -817,9 +911,7 @@ stky_v stky_read_token(stky *Y, FILE *in)
     case '"':
       state = s_string; next_c();
     case ',':
-      fprintf(stderr, "\n");
-      stky_print_vs(Y, stderr);
-      fprintf(stderr, "\n");
+      stky_print_vs(Y, Y->v_stderr);
       next_c();
     default:
       next_s(s_symbol);
@@ -898,20 +990,22 @@ stky_v stky_read_token(stky *Y, FILE *in)
   stky_push(Y, value);
   stky_push(Y, stky_v_int(last_state));
 
-  if ( 0 ) {
-    fprintf(stderr, "  : ");
-    stky_write(Y, value, stderr, 1);
-    fprintf(stderr, " %d\n", last_state);
-    stky_print_vs(Y, stderr);
+  if ( Y->token_debug >= 1 || 1 ) {
+    stky_io__printf(Y, Y->v_stderr, "  : ");
+    stky_write(Y, stderr, value, 1);
+    stky_io__printf(Y, Y->v_stderr, " %d\n", last_state);
+    stky_print_vs(Y, Y->v_stderr);
   }
 
   return Y;
 }
+#undef fgetc
+#undef ungetc
 
-stky *stky_repl(stky *Y, FILE *in, FILE *out)
+stky *stky_repl(stky *Y, stky_io *in, stky_io *out)
 {
   int c = 0;
-  while ( ! feof(in) ) {
+  while ( ! feof(in->opaque) ) {  // FIXME
     stky_catch__BODY(c) {
       Y->error_catch = c;
       stky_read_token(Y, in);
@@ -926,7 +1020,7 @@ stky *stky_repl(stky *Y, FILE *in, FILE *out)
     }
     stky_catch__THROWN(c) {
       PUSH(c->value);
-      fprintf(stderr, "ERROR: "); stky_write(Y, stky_top(Y), stderr, 10); fprintf(stderr, "\n");
+      fprintf(stderr, "ERROR: "); stky_write(Y, stderr, stky_top(Y), 10); fprintf(stderr, "\n");
     }
     stky_catch__END(c);
     // fprintf(stderr, "  =>"); stky_print_vs(Y, stderr);
@@ -934,7 +1028,9 @@ stky *stky_repl(stky *Y, FILE *in, FILE *out)
   return Y;
 }
 
-stky *stky_write(stky *Y, stky_v v, FILE *out, int depth)
+#undef fprintf
+#define fprintf(O, FMT...) stky_io__printf(Y, O, ##FMT)
+stky *stky_io__write(stky *Y, stky_io *out, stky_v v, int depth)
 {
   int is_dict;
  again:
@@ -945,6 +1041,8 @@ stky *stky_write(stky *Y, stky_v v, FILE *out, int depth)
   switch ( stky_v_type_i(v) ) {
   case stky_t_null:
     fprintf(out, "@0x0:$null"); break;
+  case stky_t_voidP:
+    fprintf(out, "@%p", ((stky_voidP*) v)->value); break;
   case stky_t_mark:
     fprintf(out, "%s", ((stky_string*) v)->p); break;
   case stky_t_int:
@@ -978,18 +1076,18 @@ stky *stky_write(stky *Y, stky_v v, FILE *out, int depth)
       if ( is_dict ) fprintf(out, "(");
       fprintf(out, a->o.flags & 1 ? "{ " : "[ ");
       for ( size_t i = 0; i < a->l; ++ i ) {
-        stky_write(Y, a->p[i], out, depth - 1);
+        stky_io__write(Y, out, a->p[i], depth - 1);
         fprintf(out, " ");
       }
       fprintf(out, a->o.flags & 1 ? "} " : "] ");
       if ( is_dict ) {
-        stky_write(Y, ((stky_dict*) v)->eq, out, depth - 1);
+        stky_io__write(Y, out, ((stky_dict*) v)->eq, depth - 1);
         fprintf(out, " dict)");
       }
     }
   } break;
   case stky_t_symbol:
-    fwrite(((stky_symbol*) v)->name->p, ((stky_symbol*) v)->name->l, 1, out);
+    stky_io__write_string(Y, out, ((stky_symbol*) v)->name->p, ((stky_symbol*) v)->name->l);
     break;
   case stky_t_literal:
     fprintf(out, "/"); v = ((stky_literal*) v)->value; goto again;
@@ -1025,10 +1123,6 @@ stky *stky_new(int *argcp, char ***argvp)
 #include "stacky/types.h"
   }
 
-  Y->v_stdin  = stky_io__new(Y, stdin,  "<stdin>",  "r");
-  Y->v_stdout = stky_io__new(Y, stdout, "<stdout>", "w");
-  Y->v_stderr = stky_io__new(Y, stderr, "<stderr>", "w");
-
   Y->v_mark =  (void*) stky_string_new_charP(Y, "&&[", -1);
   Y->v_marke = (void*) stky_string_new_charP(Y, "&&{", -1);
   ((stky_object *) Y->v_mark)->type  = stky_t(mark);
@@ -1062,6 +1156,10 @@ stky *stky_new(int *argcp, char ***argvp)
     isn_w->name = Y->isns[isn].sym_name + 1;
   }
 
+  Y->v_stdin  = stky_io__new_FILEP(Y, stdin,  "<stdin>",  "r");
+  Y->v_stdout = stky_io__new_FILEP(Y, stdout, "<stdout>", "w");
+  Y->v_stderr = stky_io__new_FILEP(Y, stderr, "<stderr>", "w");
+
   Y->sym_dict    = stky_pop(stky_exec(Y, isn_lit, stky_isn_w(isn_string_eq), isn_dict_new));
   Y->dict_stack  = stky_pop(stky_exec(Y, isn_lit_int, 0, isn_array_new));
   Y->s_marke     = stky_pop(stky_exec(Y, isn_sym_charP, (stky_i) "{"));
@@ -1085,7 +1183,7 @@ stky *stky_new(int *argcp, char ***argvp)
   for ( i = 0; isn_defs[i].name; ++ i ) {
     stky_i isn = isn_defs[i].isn;
     stky_v isn_w = Y->isns[isn].words;
-    // fprintf(stderr, "  isn %ld => ", isn); stky_write(Y, isn_w, stderr, 2); fprintf(stderr, "\n");
+    // fprintf(stderr, "  isn %ld => ", isn); stky_write(Y, stderr, isn_w, 2); fprintf(stderr, "\n");
     stky_exec(Y,
               isn_lit, (stky_i) isn_w,
               isn_sym_charP, (stky_i) Y->isns[isn].sym_name + 2,
@@ -1101,7 +1199,8 @@ stky *stky_new(int *argcp, char ***argvp)
   }
 
   Y->trace = 0;
-#define BOP(N,OP) stky_exec(Y, isn_sym_charP, (stky_i) ("&&" #N), isn_lookup, isn_sym_charP, (stky_i) #OP, isn_dict_stack_top, isn_dict_set);
+#define BOP(N,OP) \
+  stky_exec(Y, isn_sym_charP, (stky_i) ("&&" #N), isn_lookup, isn_sym_charP, (stky_i) #OP, isn_dict_stack_top, isn_dict_set);
 #define UOP(N,OP) BOP(N,OP)
 #include "stacky/cops.h"
 
@@ -1119,7 +1218,7 @@ stky *stky_new(int *argcp, char ***argvp)
 
   if ( 0 ) {
     fprintf(stderr, "\n\n dict_stack:\n");
-    stky_write(Y, Y->dict_stack, stderr, 9999);
+    stky_write(Y, stderr, Y->dict_stack, 9999);
     fprintf(stderr, "\n\n");
   }
 
@@ -1129,7 +1228,8 @@ stky *stky_new(int *argcp, char ***argvp)
 
     fprintf(stderr, "  # reading boot.stky\n");
     if ( (fp = fopen("boot.stky", "r")) ) {
-      stky_repl(Y, fp, 0);
+      stky_io *io = stky_io__new_FILEP(Y, 0, "boot.stky", "r");
+      stky_repl(Y, io, 0);
       fclose(fp);
     } else {
       perror("cannot read boot.stky");
@@ -1137,7 +1237,7 @@ stky *stky_new(int *argcp, char ***argvp)
 
     if ( 0 ) {
       fprintf(stderr, "\n\n dict_stack:\n");
-      stky_write(Y, Y->dict_stack, stderr, 9999);
+      stky_write(Y, stderr, Y->dict_stack, 9999);
       fprintf(stderr, "\n\n");
     }
   }

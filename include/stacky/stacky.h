@@ -74,7 +74,7 @@ typedef stky_symbol *stky_symbolP;
 
 typedef struct stky_dict {
   stky_array a;
-  stky_v eq;
+  stky_v eq, hsh;
 } stky_dict;
 typedef stky_dict *stky_dictP;
 
@@ -86,8 +86,10 @@ typedef stky_literal *stky_literalP;
 
 typedef struct stky_io {
   stky_object o;
-  FILE *fp;
+  stky_v opaque;
   stky_v name, mode;
+  stky_v write_string;
+  stky_v read_char, unread_char, at_eof;
 } stky_io;
 
 typedef struct stky_catch {
@@ -137,7 +139,7 @@ typedef struct stky {
   stky_object o;
   stky_array vs, es;
   stky_i trace, token_debug, threaded_comp;
-  stky_v v_stdin, v_stdout, v_stderr;
+  stky_io *v_stdin, *v_stdout, *v_stderr;
   stky_v v_mark, v_marke, v_lookup_na;
   stky_v s_mark, s_marke, s_array_tme;
   stky_dict *sym_dict;
@@ -163,10 +165,10 @@ stky *stky_call(stky *Y, stky_i *pc);
 
 stky_v stky_pop(stky *Y);
 
-stky_v stky_read_token(stky *Y, FILE *in);
-stky *stky_repl(stky *Y, FILE *in, FILE *out);
+stky_v stky_read_token(stky *Y, stky_io *in);
+stky *stky_repl(stky *Y, stky_io *in, stky_io *out);
 
-stky *stky_write(stky *Y, stky_v v, FILE *out, int depth);
+stky *stky_io__write(stky *Y, stky_io *out, stky_v v, int depth);
 
 #define stky_catch__BODY(NAME) {                \
   stky_catch *NAME = stky_catch__new(Y);        \
