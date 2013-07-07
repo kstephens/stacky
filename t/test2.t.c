@@ -2,7 +2,7 @@
 
 int main(int argc, char **argv)
 {
-  stky *Y = stky_new();
+  stky *Y = stky_new(&argc, &argv);
   {
     char eq1[] = "&eq", eq2[] = "&eq", eq3[] = "&eq";
     stky_i e[] = {

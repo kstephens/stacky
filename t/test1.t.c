@@ -2,7 +2,7 @@
 
 int main(int argc, char **argv)
 {
-  stky *Y = stky_new();
+  stky *Y = stky_new(&argc, &argv);
   {
   stky_i t[] = {
     isn_hdr,

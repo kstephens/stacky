@@ -126,7 +126,7 @@ stky_array *stky_array_init(stky *Y, stky_array *a, size_t s)
   a->l = 0;
   return a;
 }
-stky_array *stky_array__new(stky *Y, stky_v *p, size_t s)
+stky_array *stky_array__new(stky *Y, const stky_v *p, size_t s)
 {
   stky_array *o = (void*) stky_object_new(Y, stky_t(array), sizeof(*o));
   stky_array_init(Y, o, s);
@@ -979,18 +979,9 @@ stky *stky_write(stky *Y, stky_v v, FILE *out, int depth)
  rtn:
   return Y;
 }
+#undef fprintf
 
-stky_io *stky_io__new(stky *Y, FILE *fp, const char *name, const char *mode)
-{
-  stky_io *o = stky_object_new(Y, stky_t(io), sizeof(*o));
-  if ( ! fp ) { fp = fopen(name, mode); }
-  o->fp = fp;
-  o->name = stky_string_new_charP(Y, name, -1);
-  o->mode = stky_string_new_charP(Y, mode, -1);
-  return o;
-}
-
-stky *stky_new()
+stky *stky_new(int *argcp, char ***argvp)
 {
   stky *Y = 0;
   int i;
@@ -999,6 +990,7 @@ stky *stky_new()
   Y = stky_object_new(Y, 0, sizeof(*Y));
   Y->o.type = stky_t(stky);
   Y->trace = Y->token_debug = Y->defer_eval = 0;
+  Y->argcp = argcp; Y->argvp = argvp;
 
   {
     stky_type *t;
@@ -1091,6 +1083,17 @@ stky *stky_new()
 #define UOP(N,OP) BOP(N,OP)
 #include "stacky/cops.h"
 
+  {
+    int i;
+    stky_array *o = stky_array__new(Y, 0, *Y->argcp);
+    for ( i = 0; i < *Y->argcp; ++ i ) {
+      o->p[i] = stky_string_new_charP(Y, *(Y->argvp)[i], -1);
+    }
+    stky_exec(Y,
+              isn_lit, (stky_i) o,
+              isn_sym_charP, (stky_i) "&argv",
+              isn_dict_stack_top, isn_dict_set);
+  }
 
   if ( 0 ) {
     fprintf(stderr, "\n\n dict_stack:\n");

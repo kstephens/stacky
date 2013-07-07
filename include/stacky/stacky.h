@@ -146,9 +146,10 @@ typedef struct stky {
   stky_i defer_eval;
   stky_catch *current_catch, *error_catch;
   stky_v not_found;
+  int *argcp; char ***argvp;
 } stky;
 
-stky *stky_new();
+stky *stky_new(int *argcp, char ***argvp);
 
 stky *stky_call(stky *Y, stky_i *pc);
 #define stky_words(Y,WORDS...) \
