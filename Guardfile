@@ -1,5 +1,5 @@
 guard :shell do
-  watch('src/*.c') { shell("make") }
-  watch('include/**/*.h') { shell("make") }
-  watch('Makefile') { shell("make") }
+  watch(%r{src/.*\.c$}) { system("make") }
+  watch(%r{include/.*\.h$}) { system("make") }
+  watch(%r{Makefile$}) { system("make") }
 end
