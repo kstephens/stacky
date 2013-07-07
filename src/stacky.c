@@ -580,8 +580,7 @@ stky *stky_call(stky *Y, stky_i *pc)
       size_t i = 0;
       while ( i + 1 < d->a.l ) {
         PUSH(k); PUSH(d->a.p[i]); PUSH(d->eq); CALLISN(isn_call);
-        if ( Vi(0) ) {
-          POP();
+        if ( stky_v_int_(POP()) ) {
           v = d->a.p[i + 1];
           if ( i ) {
             swap(d->a.p[0], d->a.p[i]);
@@ -589,7 +588,6 @@ stky *stky_call(stky *Y, stky_i *pc)
           }
           break;
         }
-        POP();
         i += 2;
       }
       POPN(2);
@@ -601,8 +599,7 @@ stky *stky_call(stky *Y, stky_i *pc)
       size_t i = 0;
       while ( i + 1 < d->a.l ) {
         PUSH(k); PUSH(d->a.p[i]); PUSH(d->eq); CALLISN(isn_call);
-        if ( Vi(0) ) {
-          POP();
+        if ( stky_v_int_(POP()) ) {
           d->a.p[i + 1] = v;
           if ( i ) {
             swap(d->a.p[0], d->a.p[i]);
@@ -610,7 +607,6 @@ stky *stky_call(stky *Y, stky_i *pc)
           }
           goto dict_set_done;
         }
-        POP();
         i += 2;
       }
       PUSH(k); PUSH(d); CALLISN(isn_array_push);
