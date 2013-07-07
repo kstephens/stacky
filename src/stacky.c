@@ -1010,7 +1010,7 @@ stky_v stky_read_token(stky *Y, stky_io *in)
   stky_push(Y, value);
   stky_push(Y, stky_v_int(last_state));
 
-  if ( Y->token_debug >= 1 || 1 ) {
+  if ( Y->token_debug >= 1 ) {
     stky_io__printf(Y, Y->v_stderr, "  : ");
     stky_write(Y, stderr, value, 1);
     stky_io__printf(Y, Y->v_stderr, " %d\n", last_state);
