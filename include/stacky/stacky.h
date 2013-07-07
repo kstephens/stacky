@@ -42,21 +42,18 @@ typedef struct stky_bytes {
   void *b, *p;
   stky_i l, s, es;
 } stky_bytes;
-typedef stky_bytes *stky_bytesP;
 
 typedef struct stky_array {
   stky_object o;
   stky_v *b, *p;
   stky_i l, s, es;
 } stky_array;
-typedef stky_array *stky_arrayP;
 
 typedef struct stky_string {
   stky_object o;
   char *b, *p;
   stky_i l, s, es;
 } stky_string;
-typedef stky_string *stky_stringP;
 
 typedef struct stky_words {
   stky_object o;
@@ -64,25 +61,21 @@ typedef struct stky_words {
   stky_i l, s, es;
   const char *name;
 } stky_words;
-typedef stky_words *stky_wordsP;
 
 typedef struct stky_symbol {
   stky_object o;
   stky_string *name;
 } stky_symbol;
-typedef stky_symbol *stky_symbolP;
 
 typedef struct stky_dict {
   stky_array a;
   stky_v eq, hsh;
 } stky_dict;
-typedef stky_dict *stky_dictP;
 
 typedef struct stky_literal {
   stky_object o;
   stky_v value;
 } stky_literal;
-typedef stky_literal *stky_literalP;
 
 typedef struct stky_io {
   stky_object o;
@@ -100,7 +93,6 @@ typedef struct stky_catch {
   struct stky_catch *prev, *prev_error_catch;
   stky_i defer_eval;
 } stky_catch;
-typedef stky_catch *stky_catchP;
 
 typedef struct stky_voidP {
   stky_object o;
