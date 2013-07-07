@@ -2,6 +2,7 @@
 #include "gc/gc.h"
 #include <ctype.h>
 #include <assert.h>
+#include <dlfcn.h>
 
 static stky_isn isn_defs[] = {
 #define ISN(name,nwords) { { 0 }, -1, isn_##name, nwords, #name, "&&" #name },
@@ -73,6 +74,13 @@ stky_v stky_object_dup(stky *Y, stky_v v)
 stky_v stky_literal_new(stky *Y, stky_v v)
 {
   stky_literal *o = stky_object_new(Y, stky_t(literal), sizeof(*o));
+  o->value = v;
+  return o;
+}
+
+stky_v stky_voidP__new(stky *Y, void *v)
+{
+  stky_literal *o = stky_object_new(Y, stky_t(voidP), sizeof(*o));
   o->value = v;
   return o;
 }
@@ -677,25 +685,31 @@ stky *stky_call(stky *Y, stky_i *pc)
     pc = stky_array_pop(Y, &Y->es);
   ISN(Y,1): PUSH((stky_v) Y);
   ISN(c_proc,2):
-    switch ( *(pc ++) ) {
+#define FP Vt(0,stky_voidP*)->value
+    switch ( stky_v_int_(POP()) ) {
     case 0:
-      ((void (*)()) V(0)) (); POPN(1); break;
+      ((void (*)()) FP) (); POPN(1); break;
     case 1:
-      ((void (*)(stky_v)) V(0)) (V(1)); POPN(2); break;
+      ((void (*)(stky_v)) FP) (V(1)); POPN(2); break;
     case 2:
-      ((void (*)(stky_v, stky_v)) V(0)) (V(2), V(1)); POPN(3); break;
+      ((void (*)(stky_v, stky_v)) FP) (V(2), V(1)); POPN(3); break;
     default: abort();
     }
   ISN(c_func,2):
-    switch ( *(pc ++) ) {
+    switch ( stky_v_int_(POP()) ) {
     case 0:
-      V(0) = ((stky_v (*)()) V(0)) (); break;
+      V(0) = ((stky_v (*)()) FP) (); break;
     case 1:
-      V(1) = ((stky_v (*)(stky_v)) V(0)) (V(1)); POPN(1); break;
+      V(1) = ((stky_v (*)(stky_v)) FP) (V(1)); POPN(1); break;
     case 2:
-      V(2) = ((stky_v (*)(stky_v, stky_v)) V(0)) (V(2), V(1)); POPN(2); break;
+      V(2) = ((stky_v (*)(stky_v, stky_v)) FP) (V(2), V(1)); POPN(2); break;
+    case 3:
+      V(3) = ((stky_v (*)(stky_v, stky_v, stky_v)) FP) (V(3), V(2), V(1)); POPN(3); break;
+    case 4:
+      V(4) = ((stky_v (*)(stky_v, stky_v, stky_v, stky_v)) FP) (V(4), V(3), V(2), V(1)); POPN(4); break;
     default: abort();
     }
+#undef FP
   ISN(catch,1): { // body thrown CATCH
       stky_catch__BODY(c) {
         val = V(1);
@@ -715,6 +729,12 @@ stky *stky_call(stky *Y, stky_i *pc)
       stky_catch__throw(Y, c, POP());
     }
   ISN(error_catch,1): PUSH(Y->error_catch);
+  ISN(dlopen,1):
+    V(1) = stky_voidP__new(Y, dlopen(Vt(1,stky_string*)->p, stky_v_int_(V(0)))); POP();
+  ISN(dlclose,1):
+    dlclose(Vt(0,stky_voidP*)->value);
+  ISN(dlsym,1):
+    V(1) = stky_voidP__new(Y, dlsym(Vt(1,stky_voidP*)->value, Vt(0,stky_string*)->p)); POP();
   ISN(END,1): goto rtn;
   }
 #undef ISN

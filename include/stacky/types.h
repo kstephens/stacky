@@ -15,4 +15,5 @@ TYPE(words)
 TYPE(mark)
 TYPE(ref)
 TYPE(catch)
+TYPE(voidP)
 #undef TYPE

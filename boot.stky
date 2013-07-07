@@ -5,6 +5,10 @@
 { exch &dict_stack_top &dict_set }
 `def &dict_stack_top &dict_set
 
+`&argv0_symbols 0 &argv array_get 0 &dlopen def
+`&extern { &argv0_symbols exch &dlsym } def
+`exit { 2 irsh "exit" &extern 1 &c_proc } def
+
 `p {
   &v_stdout &write
   "

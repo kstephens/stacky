@@ -100,6 +100,10 @@ typedef struct stky_catch {
 } stky_catch;
 typedef stky_catch *stky_catchP;
 
+typedef struct stky_voidP {
+  stky_object o;
+  void *value;
+} stky_voidP;
 
 #define stky_v_bits 2
 #define stky_v_mask 3
