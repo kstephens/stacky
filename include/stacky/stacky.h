@@ -82,7 +82,7 @@ typedef struct stky_io {
   stky_v opaque;
   stky_v name, mode;
   stky_v write_string;
-  stky_v read_char, unread_char, at_eof, close;
+  stky_v read_char, unread_char, at_eos, close;
 } stky_io;
 
 typedef struct stky_catch {

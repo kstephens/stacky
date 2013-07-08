@@ -245,7 +245,7 @@ void stky_catch__throw(stky *Y, stky_catch *c, stky_v value)
   siglongjmp(c->jb, 1);
 }
 
-stky_io *stky_io__new_string(stky *Y, FILE *fp, stky_string *s)
+stky_io *stky_io__new_string(stky *Y, stky_string *s)
 {
   stky_io *o = stky_object_new(Y, stky_t(io), sizeof(*o));
   if ( ! s ) s = stky_string_new_charP(Y, 0, 0);
@@ -255,6 +255,7 @@ stky_io *stky_io__new_string(stky *Y, FILE *fp, stky_string *s)
   o->read_char    = (stky_v) stky_isn_w(isn_read_char_string);
   o->unread_char  = (stky_v) stky_isn_w(isn_unread_char_string);
   o->close        = (stky_v) stky_isn_w(isn_close_string);
+  o->at_eos       = (stky_v) stky_isn_w(isn_at_eos_string);
   return o;
 }
 
@@ -273,6 +274,7 @@ stky_io *stky_io__new_FILEP(stky *Y, FILE *fp, const char *name, const char *mod
   o->read_char    = (stky_v) stky_isn_w(isn_read_char_FILEP);
   o->unread_char  = (stky_v) stky_isn_w(isn_unread_char_FILEP);
   o->close        = (stky_v) stky_isn_w(isn_close_FILEP);
+  o->at_eos       = (stky_v) stky_isn_w(isn_at_eos_FILEP);
   return o;
 }
 
@@ -297,6 +299,12 @@ void stky_io__printf(stky *Y, stky_io *io, const char *fmt, ...)
 void stky_io__close(stky *Y, stky_io *io)
 {
   stky_push(Y, io); stky_exec(Y, isn_close);
+}
+
+int stky_io__at_eos(stky *Y, stky_io *io)
+{
+  stky_push(Y, io); stky_exec(Y, isn_at_eos);
+  return stky_v_int_(stky_pop(Y));
 }
 
 static
@@ -451,7 +459,20 @@ stky *stky_call(stky *Y, stky_i *pc)
       default:       PUSH(val);
         //      TYPE(null):    goto I_rtn;
       TYPE(isn):     fprintf(stderr, "\nFATAL: invalid isn %lld\n", (long long) val); abort();
-      TYPE(string):  PUSH(val);
+      TYPE(string):
+        PUSH(val);
+        if ( ((stky_object*) val)->flags & 1 ) {
+          stky_io *sio;
+          CALLISN(isn_object_dup); val = POP();
+          sio = stky_io__new_string(Y, val);
+          stky_repl(Y, sio, 0);
+        }
+      TYPE(io):
+        if ( ((stky_object*) val)->flags & 1 ) {
+          stky_repl(Y, val, 0);
+        } else {
+          PUSH(val);
+        }
       TYPE(literal): PUSH(((stky_literal*) val)->value);
       TYPE(symbol):  PUSH(val); stky_exec(Y, isn_lookup, isn_eval);
       TYPE(array):
@@ -607,17 +628,19 @@ stky *stky_call(stky *Y, stky_i *pc)
       V(0) = stky_v_char(fgetc(io->opaque));
     }
   ISN(unread_char_FILEP,1): {
-      stky_io *io = Vt(0,stky_io*);
+      stky_io *io = V(0);
       ungetc(stky_v_char_(V(1)), io->opaque);
       POPN(2);
     }
   ISN(read_char_string,1): {
-      stky_string *io = V(0);
-      V(0) = stky_v_char(io->l > 0 ? (io->l --, *(io->p ++)) : -1);
+      stky_io *io = V(0);
+      stky_string *s = io->opaque;
+      V(0) = stky_v_char(s->l > 0 ? (s->l --, *(s->p ++)) : -1);
     }
   ISN(unread_char_string,1): {
-      stky_string *io = V(0);
-      if ( io->p > io->b ) { io->l ++; io->p --; }
+      stky_io *io = V(0);
+      stky_string *s = io->opaque;
+      if ( s->p > s->b ) { s->l ++; s->p --; }
       POPN(2);
     }
   ISN(close,1): {
@@ -633,12 +656,25 @@ stky *stky_call(stky *Y, stky_i *pc)
       stky_io *io = Vt(0,stky_io*);
       ((stky_string *) io->opaque)->l = 0;
     }
+  ISN(at_eos,1): {
+      stky_io *io = Vt(0,stky_io*);
+      PUSH(io->at_eos); CALLISN(isn_eval);
+    }
+  ISN(at_eos_FILEP,1): {
+      stky_io *io = Vt(0,stky_io*);
+      V(0) = stky_v_int(! ! feof(io->opaque));
+    }
+  ISN(at_eos_string,1): {
+      stky_io *io = Vt(0,stky_io*);
+      V(0) = stky_v_int(((stky_string *) io->opaque)->l <= 0);
+    }
   ISN(c_malloc,1):  Vt(0,voidP) = stky_malloc(Vi(0));
   ISN(c_realloc,1): Vt(1,voidP) = stky_realloc(Vt(1,voidP), Vi(0)); POP();
   ISN(c_free,1):    stky_free(Vt(0,voidP)); POP();
   ISN(c_memmove,1): memmove(Vt(2,voidP), Vt(1,voidP), Vi(0)); POPN(3);
   ISN(v_tag,1):     V(0) = stky_v_int(stky_v_tag(V(0)));
   ISN(v_type,1):    V(0) = stky_v_type(V(0));
+  ISN(v_flags,1):   V(0) = stky_v_int(((stky_object*) V(0))->flags);
   ISN(cve,1):       Vt(0, stky_object*)->flags |= 1;
   ISN(eval,1):      val = POP(); goto eval;
   ISN(mark,1):      PUSH(Y->v_mark);
@@ -673,6 +709,7 @@ stky *stky_call(stky *Y, stky_i *pc)
   ISN(array_es,1): V(0) = stky_v_int(Vt(0,stky_array*)->es);
   ISN(array_get,1):  V(1) = Vt(0,stky_array*)->p[Vi(1)]; POP();
   ISN(array_set,1):  Vt(0,stky_array*)->p[Vi(1)] = V(2); POPN(2);
+  ISN(object_dup,1):  V(0) = stky_object_dup(Y, V(0));
   ISN(bytes_dup,1):  V(0) = stky_bytes_dup(Y, V(0));
   ISN(array_push,1): // v a ARRAY_PUSH |
       stky_array_push(Y, V(0), V(1));
@@ -1025,7 +1062,7 @@ stky_v stky_read_token(stky *Y, stky_io *in)
 stky *stky_repl(stky *Y, stky_io *in, stky_io *out)
 {
   int c = 0;
-  while ( ! feof(in->opaque) ) {  // FIXME
+  while ( ! stky_io__at_eos(Y, in) ) {
     stky_catch__BODY(c) {
       Y->error_catch = c;
       stky_read_token(Y, in);
