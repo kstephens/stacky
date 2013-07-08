@@ -465,11 +465,11 @@ stky *stky_call(stky *Y, stky_i *pc)
           stky_io *sio;
           CALLISN(isn_object_dup); val = POP();
           sio = stky_io__new_string(Y, val);
-          stky_repl(Y, sio, 0);
+          stky_io__eval(Y, sio);
         }
       TYPE(io):
         if ( ((stky_object*) val)->flags & 1 ) {
-          stky_repl(Y, val, 0);
+          stky_io__eval(Y, val);
         } else {
           PUSH(val);
         }
@@ -1059,10 +1059,16 @@ stky_v stky_read_token(stky *Y, stky_io *in)
 #undef fgetc
 #undef ungetc
 
-stky *stky_repl(stky *Y, stky_io *in, stky_io *out)
+stky *stky_io__eval(stky *Y, stky_io *io)
 {
-  int c = 0;
-  while ( ! stky_io__at_eos(Y, in) ) {
+  while ( ! stky_io__at_eos(Y, io) ) {
+    stky_io__eval1(Y, io);
+  }
+  return Y;
+}
+
+stky *stky_io__eval1(stky *Y, stky_io *in)
+{
     stky_catch__BODY(c) {
       Y->error_catch = c;
       stky_read_token(Y, in);
@@ -1081,7 +1087,6 @@ stky *stky_repl(stky *Y, stky_io *in, stky_io *out)
     }
     stky_catch__END(c);
     // fprintf(stderr, "  =>"); stky_print_vs(Y, stderr);
-  }
   return Y;
 }
 
@@ -1273,26 +1278,14 @@ stky *stky_new(int *argcp, char ***argvp)
               isn_dict_stack_top, isn_dict_set);
   }
 
-  if ( 0 ) {
-    fprintf(stderr, "\n\n dict_stack:\n");
-    stky_write(Y, stderr, Y->dict_stack, 9999);
-    fprintf(stderr, "\n\n");
-  }
-
   // Y->trace = 10;
   if ( 1 ) {
-    FILE *fp;
-
-    fprintf(stderr, "  # reading boot.stky\n");
     stky_io *io = stky_io__new_FILEP(Y, 0, "boot.stky", "r");
-    stky_repl(Y, io, 0);
+    fprintf(stderr, "  # reading boot.stky\n");
+    stky_print_vs(Y, Y->v_stderr);
+    stky_io__eval(Y, io);
     stky_io__close(Y, io);
-
-    if ( 0 ) {
-      fprintf(stderr, "\n\n dict_stack:\n");
-      stky_write(Y, stderr, Y->dict_stack, 9999);
-      fprintf(stderr, "\n\n");
-    }
+    stky_print_vs(Y, Y->v_stderr);
   }
   // Y->token_debug ++;
   // Y->trace = 10;

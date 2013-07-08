@@ -157,10 +157,13 @@ stky *stky_call(stky *Y, stky_i *pc);
 
 stky_v stky_pop(stky *Y);
 
-stky_v stky_read_token(stky *Y, stky_io *in);
-stky *stky_repl(stky *Y, stky_io *in, stky_io *out);
-
+stky_v stky_io__read_token(stky *Y, stky_io *in);
 stky *stky_io__write(stky *Y, stky_io *out, stky_v v, int depth);
+int stky_io__at_eos(stky *Y, stky_io *io);
+void stky_io__close(stky *Y, stky_io *io);
+
+stky *stky_io__eval(stky *Y, stky_io *in);
+stky *stky_io__eval1(stky *Y, stky_io *in);
 
 #define stky_catch__BODY(NAME) {                \
   stky_catch *NAME = stky_catch__new(Y);        \
