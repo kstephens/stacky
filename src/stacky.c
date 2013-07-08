@@ -1150,7 +1150,7 @@ stky *stky_io__write(stky *Y, stky_io *out, stky_v v, int depth)
     stky_io__write_string(Y, out, ((stky_symbol*) v)->name->p, ((stky_symbol*) v)->name->l);
     break;
   case stky_t_literal:
-    fprintf(out, "/"); v = ((stky_literal*) v)->value; goto again;
+    fprintf(out, "`"); v = ((stky_literal*) v)->value; goto again;
   default:
   shallow:
     fprintf(out, "@%p:$%s", v, stky_v_type(v)->name); break;
