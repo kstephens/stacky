@@ -651,10 +651,12 @@ stky *stky_call(stky *Y, stky_i *pc)
       stky_io *io = Vt(0,stky_io*);
       if ( io->opaque ) fclose(io->opaque);
       io->opaque = 0;
+      POP();
     }
   ISN(close_string,1): {
       stky_io *io = Vt(0,stky_io*);
       ((stky_string *) io->opaque)->l = 0;
+      POP();
     }
   ISN(at_eos,1): {
       stky_io *io = Vt(0,stky_io*);
