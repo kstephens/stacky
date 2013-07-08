@@ -1074,13 +1074,10 @@ stky *stky_io__eval1(stky *Y, stky_io *in)
     stky_catch__BODY(c) {
       Y->error_catch = c;
       stky_read_token(Y, in);
-      switch ( stky_v_int_(stky_pop(Y)) ) {
-      case s_eos:
+      if ( stky_v_int_(stky_pop(Y)) ) {
         stky_pop(Y);
-        break;
-      default: {
+      } else {
         stky_exec(Y, isn_eval);
-      }
       }
     }
     stky_catch__THROWN(c) {
@@ -1088,7 +1085,6 @@ stky *stky_io__eval1(stky *Y, stky_io *in)
       fprintf(stderr, "ERROR: "); stky_write(Y, stderr, stky_top(Y), 10); fprintf(stderr, "\n");
     }
     stky_catch__END(c);
-    // fprintf(stderr, "  =>"); stky_print_vs(Y, stderr);
   return Y;
 }
 
