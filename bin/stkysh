@@ -1,0 +1,2 @@
+#!/bin/sh
+exec rlwrap -S " stky# " "$0.bin" "$@"

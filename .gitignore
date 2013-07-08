@@ -5,4 +5,5 @@ lib*.a
 /t/*.t
 /t/*.out
 /include/stacky/isns.h
+/bin/stkysh.bin
 

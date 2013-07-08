@@ -1,7 +1,7 @@
 CC = clang
 CFLAGS += -g
 CFLAGS += -Iinclude
-# CFLAGS += -O3
+CFLAGS += -O3
 
 CFLAGS += -I/opt/local/include
 LDFLAGS += -L/opt/local/lib
@@ -19,7 +19,10 @@ LDFLAGS += -Lsrc -lstacky
 T_C = $(shell ls t/*.t.c)
 T_T = $(T_C:%.c=%)
 
-all: $(GEN_H) $(LIB) $(T_T)
+BIN_C = $(shell ls bin/*.c)
+BIN_E = $(BIN_C:%.c=%)
+
+all: $(GEN_H) $(LIB) $(T_T) $(BIN_E)
 
 include/stacky/isns.h : Makefile src/stacky.c
 	echo '#undef ISN' > $@
@@ -33,6 +36,8 @@ $(LIB_O) : $(INCLUDE_H)
 
 $(T_T) : $(LIB)
 # $(T_T) :: $(INCLUDE_H)
+
+$(BIN_E) : $(LIB)
 
 %.s : %.c
 	$(CC) $(CFLAGS) -S -o $@ $(@:.s=.c)
@@ -50,4 +55,5 @@ clean:
 	rm -f $(GEN_H)
 	rm -f src/*.o src/lib*.a t/*.t
 	rm -rf t/*.dSYM
+	rm -rf $(BIN_E) bin/*.dSYM
 
