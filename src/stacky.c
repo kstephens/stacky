@@ -1074,7 +1074,7 @@ stky *stky_io__eval1(stky *Y, stky_io *in)
     stky_catch__BODY(c) {
       Y->error_catch = c;
       stky_read_token(Y, in);
-      if ( stky_v_int_(stky_pop(Y)) ) {
+      if ( stky_v_int_(stky_pop(Y)) == s_eos ) {
         stky_pop(Y);
       } else {
         stky_exec(Y, isn_eval);
