@@ -188,17 +188,17 @@ stky *stky_string_append_char(stky *Y, stky_string *o, int c)
 
 stky_v stky_array_top(stky *Y, stky_array *o)
 {
-  if ( o->l <= 0 ) abort();
+  assert( o->l > 0 );
   return o->p[o->l - 1];
 }
 stky_v stky_array_top_(stky *Y, stky_array *o, stky_v v)
 {
-  if ( o->l <= 0 ) abort();
+  assert( o->l > 0);
   return o->p[o->l - 1] = v;
 }
 stky_v* stky_array_popn(stky *Y, stky_array *o, size_t s)
 {
-  if ( o->l < s ) abort();
+  assert( o->l >= s );
   return o->p + (o->l -= s);
 }
 stky_v stky_array_pop(stky *Y, stky_array *o)
@@ -235,7 +235,7 @@ void stky_catch__throw(stky *Y, stky_catch *c, stky_v value)
     }
   }
   Y->current_catch = c->prev;
-  if ( stky_v_int_(c->thrown) ) abort();
+  assert ( ! stky_v_int_(c->thrown) );
   c->value  = value;
   c->thrown = stky_v_int(1);
   Y->vs.l = stky_v_int_(c->vs_depth);
