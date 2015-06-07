@@ -552,11 +552,11 @@ stky *stky_call(stky *Y, stky_i *pc)
 #define BOP(name,op) ISN(name,1): V(1) = stky_v_int(Vi(1) op Vi(0)); POP();
 #define UOP(name,op) ISN(name,1): V(0) = stky_v_int(op Vi(0));
 #include "stacky/cops.h"
-#define BOP(N,OP) ISN(w##N,1): V(1) = (stky_v) ((stky_w) V(1) OP (stky_w) V(0)); POP();
-#define UOP(N,OP) ISN(w##N,1): V(0) = (stky_v) (OP (stky_w) V(0));
+#define BOP(N,OP) ISN(w##N,1): V(1) = (stky_v) (stky_w) ((stky_w) V(1) OP (stky_w) V(0)); POP();
+#define UOP(N,OP) ISN(w##N,1): V(0) = (stky_v) (stky_w) (OP (stky_w) V(0));
 #include "stacky/cops.h"
-#define BOP(N,OP) ISN(i##N,1): V(1) = (stky_v) ((stky_i) V(1) OP (stky_i) V(0)); POP();
-#define UOP(N,OP) ISN(i##N,1): V(0) = (stky_v) (OP (stky_i) V(0));
+#define BOP(N,OP) ISN(i##N,1): V(1) = (stky_v) (stky_i) ((stky_i) V(1) OP (stky_i) V(0)); POP();
+#define UOP(N,OP) ISN(i##N,1): V(0) = (stky_v) (stky_i) (OP (stky_i) V(0));
 #include "stacky/cops.h"
   ISN(ifelse,1): // v t f IFELSE | (t|f)
     if ( Vi(2) ) {
