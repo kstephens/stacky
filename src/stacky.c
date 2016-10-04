@@ -549,6 +549,8 @@ stky *stky_call(stky *Y, stky_i *pc)
       memmove(&V(n - 1), &V(n - 2), sizeof(V(0)) * (n - 1));
       V(0) = tmp;
     }
+  ISN(nullq,1):
+    V(0) = stky_v_int(stky_v_type_i(V(0)) == stky_t_null);
 #define BOP(name,op) ISN(name,1): V(1) = stky_v_int(Vi(1) op Vi(0)); POP();
 #define UOP(name,op) ISN(name,1): V(0) = stky_v_int(op Vi(0));
 #include "stacky/cops.h"
