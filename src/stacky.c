@@ -907,6 +907,8 @@ stky *stky_call(stky *Y, stky_i *pc)
     dlclose(Vt(0,stky_voidP*)->value);
   ISN(dlsym,1):
     V(1) = stky_voidP__new(Y, dlsym(Vt(1,stky_voidP*)->value, Vt(0,stky_string*)->p)); POP();
+  ISN(print_vs,1):
+    stky_print_vs(Y, Y->v_stderr);
   ISN(END,1): goto rtn;
   }
 #undef ISN
