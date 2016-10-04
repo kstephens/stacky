@@ -16,9 +16,7 @@
 } def
 
 `. {
-  dup &v_stdout &write
-  "
-" &v_stdout &write_string
+  dup p
 } def
 
 `&error { # desc ERROR |
