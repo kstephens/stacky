@@ -748,7 +748,7 @@ stky *stky_call(stky *Y, stky_i *pc)
       // fprintf(stderr, "  dict_new %lld\n", (long long) d);
       Vt(0,stky_dict*) = d;
     }
-  ISN(dict_get,1): { // v k dict DICT_GET | (v|d)
+  ISN(dict_get,1): { // d k dict DICT_GET | (v|d)
       stky_dict *d = Vt(0,stky_dict*);
       stky_v k = V(1), v = V(2);
       size_t i = 0;
@@ -788,7 +788,13 @@ stky *stky_call(stky *Y, stky_i *pc)
     dict_set_done:
       POPN(3);
       if ( 0 && d != Y->sym_dict ) {
-        fprintf(stderr, "  dict_set => "); stky_write(Y, stderr, d, 3); fprintf(stderr, "\n");
+        fprintf(stderr, "  dict_set => ");
+        stky_write(Y, stderr, d, 3);
+        fprintf(stderr, " [%d] ", (int) i);
+        stky_write(Y, stderr, k, 1);
+        fprintf(stderr, " ", (int) i, k, v);
+        stky_write(Y, stderr, v, 1);
+        fprintf(stderr, "\n");
       }
       (void) 0;
     }
@@ -1224,12 +1230,6 @@ stky *stky_new(int *argcp, char ***argvp)
   stky_array_init(Y, &Y->es, 1023);
   Y->es.p[Y->es.l ++] = Y;
 
-  {
-    char *v;
-    if ( (v = getenv("STACKY_TRACE")) && (i = atoi(v)) > 0 )
-      Y->trace = i;
-  }
-
   for ( i = 0; isn_defs[i].name; ++ i ) {
     stky_i isn = isn_defs[i].isn;
     stky_words *isn_w;
@@ -1251,6 +1251,12 @@ stky *stky_new(int *argcp, char ***argvp)
   Y->s_array_tme = stky_pop(stky_exec(Y, isn_sym_charP, (stky_i) "}"));
   Y->dict_0      = stky_pop(stky_exec(Y, isn_lit, stky_isn_w(isn_eqw), isn_dict_new));
   stky_exec(Y, isn_lit, (stky_i) Y->dict_0, isn_dict_stack, isn_array_push);
+
+  {
+    char *v;
+    if ( (v = getenv("STACKY_TRACE")) && (i = atoi(v)) > 0 )
+      Y->trace = i;
+  }
 
   stky_exec(Y,
             isn_lit, (stky_i) stky_isn_w(isn_mark),      isn_sym_charP, (stky_i) "[", isn_dict_stack_top, isn_dict_set,
@@ -1305,10 +1311,10 @@ stky *stky_new(int *argcp, char ***argvp)
   if ( 1 ) {
     stky_io *io = stky_io__new_FILEP(Y, 0, "boot.stky", "r");
     fprintf(stderr, "  # reading boot.stky\n");
-    stky_print_vs(Y, Y->v_stderr);
+    // stky_print_vs(Y, Y->v_stderr);
     stky_io__eval(Y, io);
     stky_io__close(Y, io);
-    stky_print_vs(Y, Y->v_stderr);
+    // stky_print_vs(Y, Y->v_stderr);
   }
   // Y->token_debug ++;
   // Y->trace = 10;
