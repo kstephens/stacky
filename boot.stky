@@ -32,17 +32,24 @@
    { pop } { [ swap `typecheck ] &error } ifelse
 } def
 
-`dict_keys { # dict |
-  bytes_dup exch pop
-  [ ] 0 {              # dict [ ] i
-    dup 3 vget         # dict [ ] i i dict
-    array_get          # dict [ ] i dict[i]
-    2 vget array_push  # dict [ k ... ] i
-    + 2                # dict [ k ... ] i+2
+`dict_keys { # dict | [ key ... ]
+  dup array_l
+  [ ]
+  0
+  {                    # dict | l a=[ ] i
+    dup                # dict | l a=[ ] i i
+    4 vget             # dict | l a=[ ] i i dict
+    array_get          # dict | l a=[ ] i k=dict[i]
+    dup &nullq         # dict | l a=[ ] i k k==0
+    { pop } {
+      2 vget           # dict | l a=[ ] i k a
+      array_push       # dict | l a=[ k ... ] i
+    } ifelse
+    2 +                # dict | l a=[ k ... ] i+2
   } {
-    dup        # dict [ k ... ] i+2 i+2
-    3 vget     # dict [ k ... ] i+2 i+2 dict 
-    array_l <  # dict [ k ... ] i+2 i+2<len(dict)
-  } loop       # dict [ k ... ] I
-  pop exch pop
+    dup                # dict | l a=[ k ... ] i+2 i+2
+    3 vget             # dict | l a=[ k ... ] i+2 i+2 l
+    &lt                # dict | l a=[ k ... ] i+2 (0|1)
+  } loop               # dict | l a=[ k ... ] i+2
+  pop exch pop         # dict | [ keys ... ]
 } def
