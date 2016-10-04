@@ -53,3 +53,10 @@
   } loop               # dict | l a=[ k ... ] i+2
   pop exch pop         # dict | [ keys ... ]
 } def
+
+"  # Defined words: 
+  # " &v_stdout &write_string
+&dict_stack_top dict_keys p
+
+"  # Value Stack: 
+" &v_stdout &write_string &print_vs
