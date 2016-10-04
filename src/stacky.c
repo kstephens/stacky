@@ -358,6 +358,8 @@ stky *stky_call(stky *Y, stky_i *pc)
 #define V(i) vp[- (i)]
 #define Vt(i,t) (*((t*) (vp - (i))))
 #define Vi(i) stky_v_int_(V(i))
+#define ep (Y->es.p + (Y->es.l - 1))
+#define E(i) ep[- (i)]
 #define CALL(P) do {                               \
     stky_array_push(Y, &Y->es, (stky_v) pc);       \
     pc = (stky_i*) (P);                            \
@@ -567,10 +569,25 @@ stky *stky_call(stky *Y, stky_i *pc)
       SWAP(0, 1); POP(); SWAP(0, 1); POP(); CALLISN(isn_eval);
     }
   ISN(loop,1): // e t LOOP |
+    stky_array_push(Y, &Y->es, V(1)); // ES: e |
+    stky_array_push(Y, &Y->es, V(0)); // ES: e t |
+    POPN(2);               // |
   loop_again:
-    PUSH(V(0)); CALLISN(isn_eval);
-    if ( V(0) ) { POP(); PUSH(V(1)); CALLISN(isn_eval); goto loop_again; }
-    POPN(3);
+    PUSH(E(0));            // t |
+    // stky_print_vs(Y, Y->v_stderr);
+    CALLISN(isn_eval);     // eval(t) |
+    if ( Vi(0) ) {
+      POP();               // |
+      PUSH(E(1));          // e |
+      // stky_print_vs(Y, Y->v_stderr);
+      CALLISN(isn_eval);   // eval(e) |
+      // stky_print_vs(Y, Y->v_stderr);
+      goto loop_again;
+    }
+                           // eval(t) |
+    POPN(1);               // |
+    stky_array_pop(Y, &Y->es);
+    stky_array_pop(Y, &Y->es);
   ISN(ifelser,3):
     pc += 2;
     pc[-3] = isn_ifelse;
