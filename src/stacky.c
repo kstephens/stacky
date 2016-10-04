@@ -293,7 +293,9 @@ void stky_io__printf(stky *Y, stky_io *io, const char *fmt, ...)
 {
   char buf[1024];
   va_list va; va_start(va, fmt); vsnprintf(buf, sizeof(buf) -1, fmt, va); va_end(va);
+  Y->trace --;
   stky_io__write_string(Y, io, buf, strlen(buf));
+  Y->trace ++;
 }
 
 void stky_io__close(stky *Y, stky_io *io)
@@ -311,12 +313,14 @@ static
 void stky_print_vs(stky *Y, stky_io *out)
 {
   size_t i = 0;
+  Y->trace --;
   stky_io__write_string(Y, out, "  # V: ", -1);
   while ( i < Y->vs.l ) {
     stky_io__write(Y, out, Y->vs.p[i ++], 2);
     stky_io__write_string(Y, out, " ", 1);
   }
   stky_io__write_string(Y, out, "| \n", 3);
+  Y->trace ++;
 }
 
 #define fprintf(FP, FMT...) stky_io__printf(Y, Y->v_##FP, ##FMT)
