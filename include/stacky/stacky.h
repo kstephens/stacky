@@ -6,13 +6,16 @@
 #include <string.h>
 #include <setjmp.h>
 
+#define stky_inline static __inline__ __attribute__((always_inline))
+
 typedef void *voidP;
 typedef char *charP;
 typedef unsigned char *ucharP;
 
-typedef void *stky_v;
-typedef size_t  stky_w;
-typedef ssize_t stky_i;
+// typedef void *stky_v;
+typedef uintptr_t stky_v;
+typedef uintptr_t stky_w;
+typedef intptr_t  stky_i;
 
 typedef struct stky_object {
   struct stky_type *type;
@@ -99,27 +102,6 @@ typedef struct stky_voidP {
   void *value;
 } stky_voidP;
 
-#define stky_v_bits 2
-#define stky_v_mask 3
-#define stky_v_tag(V)  (((stky_i) (V)) & 3)
-#define stky_v_type(V)                                                  \
-  ({ stky_v __tmp##__LINE__ = (stky_v) (V);                             \
-    ! (__tmp##__LINE__) ? Y->types + stky_t_null :                      \
-      ! stky_v_tag(__tmp##__LINE__) ? *(stky_type**)(__tmp##__LINE__) : \
-      Y->types + stky_v_tag(__tmp##__LINE__); })
-#define stky_v_type_i(V) stky_v_type(V)->i
-#define _stky_v_int(X)                       (((X)  << 2) | 1)
-#define stky_v_int(X)    ((stky_v) ((((stky_i) (X)) << 2) | 1))
-#define stky_v_int_(V)              (((stky_i) (V)) >> 2)
-#define stky_v_char(X)   ((stky_v) ((((stky_w) (X)) << 2) | 2))
-#define stky_v_char_(V)             (((stky_w) (V)) >> 2)
-#define stky_v_isnQ(V) (stky_v_tag(V) == stky_t_tag)
-#define _stky_v_isn(X)                       (((X)  << 2) | 3)
-#define stky_v_isn(X)                ((stky_v) (X))
-#define stky_v_isn_(V)               ((stky_w) (V))
-
-#include "isn.h"
-
 enum stky_type_e {
 #define TYPE(name) stky_t_##name,
   styk_t_BEGIN = -1,
@@ -146,6 +128,43 @@ typedef struct stky {
   stky_v not_found;
   int *argcp; char ***argvp;
 } stky;
+
+#define stky_v_bits 2
+#define stky_v_mask 3
+
+stky_inline int    stky_v_tag(stky_v v)   { return (((stky_i) (v)) & 3); }
+stky_inline void*  stky_v_obj(stky_v v)   { return ((void*) v) - 3; }
+stky_inline stky_v stky_v_obj_(void* obj) { return (stky_v) (obj + 3); }
+
+extern _thread stky* _stky_Y;
+#define Y _stky_Y;
+
+stky_inline stky_type* stky_v_type_(stky_v v)
+{
+  int tag = stky_v_tag(v);
+  switch ( tag ) {
+  case 0:
+    return Y->types + (v ? stky_t_isn : stky_t_null); // address to void (*fun)().
+  case 1:
+    return Y->types + stky_t_int;
+  case 2:
+    return Y->types + stky_t_char;
+  case 3:
+    return  *(stky_type**) sty_v_obj(v);
+  default:
+    abort();
+  }
+}
+#define stky_v_type_i(V) stky_v_type(V)->i
+
+#define _stky_v_int(X)                       (((X)  << 2) | 1)
+#define stky_v_int(X)    ((stky_v) ((((stky_i) (X)) << 2) | 1))
+#define stky_v_int_(V)              (((stky_i) (V)) >> 2)
+#define stky_v_char(X)   ((stky_v) ((((stky_w) (X)) << 2) | 2))
+#define stky_v_char_(V)             (((stky_w) (V)) >> 2)
+#define _stky_v_isn(X)                       (((X)  << 2) | 3)
+#define stky_v_isn(X)                ((stky_v) (X))
+#define stky_v_isn_(V)               ((stky_v) (V))
 
 stky *stky_new(int *argcp, char ***argvp);
 

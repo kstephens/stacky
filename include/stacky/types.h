@@ -1,7 +1,8 @@
-TYPE(null)  /* tag: 0 */
+TYPE(null)
+TYPE(isn)   /* tag: 0 */
 TYPE(int)   /* tag: 1 */
 TYPE(char)  /* tag: 2 */
-TYPE(isn)   /* tag: 3 */
+TYPE(object)/* tag: 3 */
 TYPE(stky)
 TYPE(type)
 TYPE(string)
