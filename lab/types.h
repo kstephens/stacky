@@ -1,15 +1,15 @@
-TYPE(fun)   /* tag: 0 */
-TYPE(fixnum)   /* tag: 1 */
-TYPE(symbol)   /* tag: 2 */
-//TYPE(null)  /* tag: 0 */
-//TYPE(char)  /* tag: 2 */
+TYPE(type) // MUST BE FIRST
+TYPE(fun)
+TYPE(fixnum)
+TYPE(symbol)
+//TYPE(char)
 //TYPE(stky)
-TYPE(type)
+TYPE(null)
 TYPE(string)
 TYPE(array)
-//TYPE(dict)
-//TYPE(literal)
-//TYPE(io)
+TYPE(dict)
+TYPE(cell)
+TYPE(io)
 //TYPE(bytes)
 //TYPE(words)
 TYPE(mark)
