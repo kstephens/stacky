@@ -475,12 +475,12 @@ stky_F(write_string_FILEP)
 }
 stky_F(read_char_FILEP) { // IO | c
   stky_io* io = stky_O(stky_pop(), io);
-  stky_push(stky_v_c(fgetc(stdin)));
+  stky_push(stky_v_c(fgetc(io->opaque)));
 }
 stky_F(unread_char_FILEP) { // c IO |
   stky_io* io = stky_O(stky_pop(), io);
   stky_v c = stky_pop();
-  ungetc(stky_v_c_(c), stdin);
+  ungetc(stky_v_c_(c), io->opaque);
 }
 stky_F(at_eos_FILEP) { // IO | 
   stky_io* io = stky_O(stky_pop(), io);
