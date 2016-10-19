@@ -919,6 +919,7 @@ void stky_init()
   F(exec);
   F(array_len);
   F(array_get);
+  F(array_top);
   F(dict_get);
   F(dict_set);
   F(dict_getsert);
