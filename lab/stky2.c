@@ -666,16 +666,6 @@ stky_F(read_token)
   }
   stky_push(value);
   stky_push(stky_v_i(last_state));
-
-#if 0
-  if ( Y->token_debug >= 1 ) {
-    stky_io__printf(Y, Y->v_stderr, "  : ");
-    stky_write(Y, stderr, value, 1);
-    stky_io__printf(Y, Y->v_stderr, " %d\n", last_state);
-    stky_print_vs(Y, Y->v_stderr);
-  }
-  return Y;
-#endif
 }
 #undef fgetc
 #undef ungetc
@@ -951,14 +941,7 @@ void stky_init()
 int main(int argc, char **argv, char **envp)
 {
   stky_init();
-#if 0
-  stky_call(stky_v_i(123), stky_f(println));
-  stky_call(stky_f(print), stky_f(println));
-  stky_call(stky_v_i(0), mark, stky_v_i(1), stky_v_i(2), stky_f(v_stack));
-  stky_exec(stky_f(count_to_mark));
-  stky_exec(stky_f(dup), stky_f(println));
-  stky_exec(stky_f(make_array), stky_f(println));
-#endif
+  stky_call(core_dict, stky_f(println));
   stky_call(stky_stdin, stky_f(eval_io));
   return 0;
 }
