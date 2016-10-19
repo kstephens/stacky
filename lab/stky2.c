@@ -719,7 +719,7 @@ stky_F(make_selector) { // default_method
   stky_exec(stky_f(v_stack), stky_v_i(0),
             stky_f(make_array), stky_f(array_to_dict));
   stky_v methods = stky_pop();
-  stky_call((stky_v) 0, stky_pop(), methods, stky_f(dict_set));
+  stky_call((stky_v) 0, default_method, methods, stky_f(dict_set));
   stky_call(mark,
             stky_f(dup),   // obj | obj
             stky_f(type),  // obj | type(obj)
