@@ -789,6 +789,10 @@ stky_F(print_string) {
   stky_call(stky_f(write_string));
   stky_call("\"", stky_f(write_charP));
 }
+stky_F(print_cell) {
+  stky_call("/", stky_f(write_charP));
+  stky_call(stky_O(stky_pop(), cell)->value, stky_f(print));
+}
 stky_F(print_type) {
   stky_call("@type:", stky_f(write_charP));
   stky_call(stky_O(stky_pop(), type)->name, stky_f(write_string));
@@ -894,6 +898,7 @@ void stky_init()
             t_type,   stky_f(print_type),
             t_array,  stky_f(print_array),
             t_dict,   stky_f(print_dict),
+            t_cell,   stky_f(print_cell),
             stky_f(nop));
   stky_exec(stky_f(v_stack), stky_f(count_to_mark),
             stky_f(make_array), stky_f(array_to_dict),
