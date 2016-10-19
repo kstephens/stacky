@@ -64,8 +64,6 @@ struct stky_cell {
 struct stky_io {
   stky_v opaque;
   stky_v name, mode;
-  stky_v write_string;
-  stky_v read_char, unread_char, at_eos, close;
 };
 
 stky_inline int       stky_v_t_(stky_v v)   { return ((stky_i) (v)) & 3; }
@@ -467,47 +465,30 @@ stky_F(eval_cell) { // cell | value(cell)
   V(0) = stky_O(V(0), cell)->value;
 }
 
-stky_F(write_string_FILEP)
+stky_F(io_write_string) // str IO |
 {
-  stky_io* self = stky_O(stky_pop(), io);
-  stky_string* str = stky_O(stky_pop(), string);
-  fwrite(str->b, sizeof(str->b[0]), str->p - str->b, self->opaque);
-}
-stky_F(read_char_FILEP) { // IO | c
   stky_io* io = stky_O(stky_pop(), io);
-  stky_push(stky_v_c(fgetc(io->opaque)));
+  stky_string* str = stky_O(stky_pop(), string);
+  fwrite(str->b, sizeof(str->b[0]), str->p - str->b, io->opaque);
 }
-stky_F(unread_char_FILEP) { // c IO |
+stky_F(read_char) { // IO | c
+  stky_io* io = stky_O(V(0), io);
+  V(0) = stky_v_c(fgetc(io->opaque));
+}
+stky_F(unread_char) { // c IO |
   stky_io* io = stky_O(stky_pop(), io);
   stky_v c = stky_pop();
   ungetc(stky_v_c_(c), io->opaque);
 }
-stky_F(at_eos_FILEP) { // IO | 
-  stky_io* io = stky_O(stky_pop(), io);
-  stky_push(stky_v_i(feof(io->opaque)));
+stky_F(at_eos) { // IO | eos?
+  stky_io* io = stky_O(V(0), io);
+  V(0) = stky_v_i(feof(io->opaque));
 }
-stky_F(close_FILEP) { // IO |
+stky_F(close) { // IO |
   stky_io* io = stky_O(stky_pop(), io);
   if ( io->opaque )
     fclose(io->opaque);
   io->opaque = 0;
-}
-
-stky_F(read_char) { // IO | c
-  stky_io* io = stky_O(stky_top(), io);
-  stky_eval(io->read_char);
-}
-stky_F(unread_char) { // c IO |
-  stky_io* io = stky_O(stky_top(), io);
-  stky_eval(io->unread_char);
-}
-stky_F(at_eos) { // IO | eos?
-  stky_io* io = stky_O(stky_top(), io);
-  stky_eval(io->at_eos);
-}
-stky_F(close) { // IO |
-  stky_io* io = stky_O(stky_top(), io);
-  stky_eval(io->close);
 }
 
 stky_v stky_io_new_FILEP(FILE *fp, const char *name, const char *mode)
@@ -518,14 +499,9 @@ stky_v stky_io_new_FILEP(FILE *fp, const char *name, const char *mode)
       perror("Cannot open file");
     }
   }
-  o->opaque = fp;
-  o->name         = stky_string_new(name, -1);
-  o->mode         = stky_string_new(mode, -1);
-  o->write_string = stky_f(write_string_FILEP);
-  o->read_char    = stky_f(read_char_FILEP);
-  o->unread_char  = stky_f(unread_char_FILEP);
-  o->close        = stky_f(close_FILEP);
-  o->at_eos       = stky_f(at_eos_FILEP);
+  o->opaque  = fp;
+  o->name    = stky_string_new(name, -1);
+  o->mode    = stky_string_new(mode, -1);
   return stky_v_o(o);
 }
 stky_v stky_stdin, stky_stdout, stky_stderr;
@@ -566,7 +542,6 @@ stky_F(read_token)
     stky_call(stky_v_o(in), stky_f(read_char));
     c = stky_v_c_(stky_pop());
   }
-  // if ( Y->token_debug >= 2 ) fprintf(stderr, "  c = %s, state = %d, token = '%s'\n", char_to_str(c), state, token->p);
   switch ( state ) {
   case s_error:
     stky_call(token, stky_v_c(c), stky_f(string_push));
@@ -732,7 +707,7 @@ stky_F(make_selector) { // default_method
             stky_f(exec), // obj | ...
             stky_f(nop));
   stky_exec(stky_f(array_end_exec));
-  stky_v fun = stky_top();
+  // stky_v fun = stky_top();
   stky_call(methods, stky_f(set_meta));
 }
 stky_F(add_method) { // type method selector
