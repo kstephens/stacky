@@ -934,8 +934,9 @@ void stky_init()
   F(print);
   F(println);
 #undef F
-  stky_call(stky_symbol_new("x"), stky_v_i(123), core_dict, stky_f(dict_set));
-  stky_call(core_dict, stky_f(println));
+  stky_v io = stky_io_new_FILEP(0, "boot.stky", "r");
+  stky_call(io, stky_f(eval_io));
+  stky_call(io, stky_f(close));
 }
 
 int main(int argc, char **argv, char **envp)
