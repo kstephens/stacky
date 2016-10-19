@@ -544,8 +544,6 @@ enum read_token_state {
     s_string,
 };
 
-#define fgetc(IO) ({ stky_push(stky_v_o(IO)); stky_e(read_char); stky_v_c_(stky_pop()); })
-#define ungetc(C,IO) ({ stky_push(stky_v_c(C)); stky_push(stky_v_o(IO)); stky_e(unread_char); })
 stky_F(read_token)
 {
   stky_io *in = stky_O(stky_pop(), io);
@@ -564,7 +562,10 @@ stky_F(read_token)
  again:
   last_state = last_state_2; last_state_2 = state;
   if ( ! token ) token = stky_string_new("", 0);
-  if ( c == -2 ) c = fgetc(in);
+  if ( c == -2 ) {
+    stky_call(stky_v_o(in), stky_f(read_char));
+    c = stky_v_c_(stky_pop());
+  }
   // if ( Y->token_debug >= 2 ) fprintf(stderr, "  c = %s, state = %d, token = '%s'\n", char_to_str(c), state, token->p);
   switch ( state ) {
   case s_error:
@@ -658,8 +659,9 @@ stky_F(read_token)
 #undef next_c
 #undef next_s
 #undef stop_s
- stop:
-  if ( c >= 0 ) ungetc(c, in);
+  // stop:
+  if ( c >= 0 )
+    stky_call(stky_v_c(c), stky_v_o(in), stky_f(unread_char));
   while ( literal -- ) {
     value = stky_cell_new(value);
     last_state = s_literal;
@@ -667,8 +669,6 @@ stky_F(read_token)
   stky_push(value);
   stky_push(stky_v_i(last_state));
 }
-#undef fgetc
-#undef ungetc
 
 void stky_eval(stky_v v)
 {
