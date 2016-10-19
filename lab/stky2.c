@@ -415,6 +415,11 @@ stky_F(dicts_get) { // k dicts | v
   }
   stky_push(0);
 }
+stky_F(eval_dict) {
+  if ( stky_v_execQ(V(0)) ) {
+    stky_e(dict_get);
+  }
+}
 
 stky_F(eval_symbol) { // sym | v
   stky_e(d_stack);
@@ -866,6 +871,7 @@ void stky_init()
 #include "types.h"
 
   stky_O(t_array , type)->eval = stky_f(eval_array);
+  stky_O(t_dict  , type)->eval = stky_f(eval_dict);
   stky_O(t_symbol, type)->eval = stky_f(eval_symbol);
   stky_O(t_io,     type)->eval = stky_f(eval_io);
   stky_O(t_cell,   type)->eval = stky_f(eval_cell);
