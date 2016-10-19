@@ -547,7 +547,7 @@ enum read_token_state {
 stky_F(read_token)
 {
   stky_io *in = stky_O(stky_pop(), io);
-  stky_v value;
+  stky_v value = 0;
   stky_v token = 0;
   stky_i n = 0;
   int pot_num_c = 0;
