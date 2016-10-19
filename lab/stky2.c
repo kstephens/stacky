@@ -272,19 +272,26 @@ stky_F(make_array) // v1 v2 ... vn n | [ v1 v2 ... vn ]
 
 stky_v array_exec_begin, array_exec_end;
 int defer_eval = 0;
-stky_F(eval_inner)
+stky_F(eval_inner_deferred)
 {
-  stky_v token = stky_top();
-  if ( token == array_exec_end ) {
-    defer_eval --;
-  }
   if ( ! defer_eval ) {
     if ( stky_v_T_(stky_top()) == t_symbol )
       stky_e(exec);
     stky_e(exec);
   }
-  if ( token == array_exec_begin ) {
+}
+
+stky_F(eval_inner)
+{
+  stky_v token = stky_top();
+  if ( token == array_exec_end ) {
+    defer_eval --;
+    stky_e(eval_inner_deferred);
+  } else if ( token == array_exec_begin ) {
+    stky_e(eval_inner_deferred);
     defer_eval ++;
+  } else {
+    stky_e(eval_inner_deferred);
   }
 }
 
@@ -805,15 +812,20 @@ stky_F(println) {
 
 stky_F(eval_io) {
   stky_v io = stky_pop();
-  int echo = 0;
+  int echo_token = 0;
   int print_result = 0;
   
   while ( stky_call(io, stky_f(at_eos)), ! stky_v_i_(stky_pop()) ) {
     stky_call(io, stky_f(read_token));
-    int state = stky_v_i_(stky_pop());
-    if ( echo ) {
+    stky_v state = stky_pop();
+    if ( echo_token ) {
+      stky_call(state, stky_f(println));
       stky_e(dup);
       stky_e(println);
+    }
+    if ( stky_v_i_(state) < 0 ) {
+      stky_pop();
+      break;
     }
     stky_e(eval_inner);
     if ( print_result ) {
