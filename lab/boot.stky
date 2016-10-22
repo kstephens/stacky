@@ -1,3 +1,0 @@
-/def { &d_stack &array_top &dict_set } &d_stack &array_top &dict_set
-/pop /&pop &exec def
-/dup /&dup &exec def

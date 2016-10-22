@@ -1,59 +1,29 @@
-CC = clang
+CFLAGS_OPT = -O3
+CFLAGS += $(CFLAGS_OPT)
 CFLAGS += -g
-CFLAGS += -Iinclude
-CFLAGS += -O3
+CFLAGS += -Wall
 
+CFLAGS += -Igen
+CFLAGS += -Iboot
 CFLAGS += -I/opt/local/include
 LDFLAGS += -L/opt/local/lib
 LDFLAGS += -lgc
 
-LIB = src/libstacky.a
-LIB_C := $(shell ls src/*.c)
-LIB_O = $(LIB_C:.c=.o)
+all : gen/prims.h gen/types.h stky
 
-INCLUDE_H := $(shell ls include/*/*.h)
-GEN_H := include/stacky/isns.h
+stky : stky.c
 
-LDFLAGS += -Lsrc -lstacky
+gen/prims.h : *.c
+	mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -Dstky_F=stky_F -E $< | perl -ne 'while ( s~(stky_F\([^\)]+\))~~ ) { print "def_", $$1, "\n"; }' | sort -u > $@
 
-T_C = $(shell ls t/*.t.c)
-T_T = $(T_C:%.c=%)
+gen/types.h : *.c
+	mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -Dstky_F=stky_F -E $< | perl -ne 'while ( s~struct stky_(\w+)~~ ) { print "TYPE(", $$1, ")\n"; }' | sort -u > $@
+	echo "#undef TYPE" >> $@
 
-BIN_C = $(shell ls bin/*.c)
-BIN_E = $(BIN_C:%.c=%)
-
-all: $(GEN_H) $(LIB) $(T_T) $(BIN_E)
-
-include/stacky/isns.h : Makefile src/stacky.c
-	echo '#undef ISN' > $@
-	$(CC) $(CFLAGS) -DISN_DEF -E -o - $(LIB_C) | perl -npe 'print $$1, "\n" if /(ISN[(][a-z_][^)]+[)])/i; $$_ = undef;' | sort -u > $@
-	echo '#undef ISN' >> $@
-
-$(LIB) : $(LIB_O)
-	ar r $@ $(LIB_O)
-
-$(LIB_O) : $(INCLUDE_H)
-
-$(T_T) : $(LIB)
-# $(T_T) :: $(INCLUDE_H)
-
-$(BIN_E) : $(LIB)
+clean :
+	rm -f stky gen/*
 
 %.s : %.c
-	$(CC) $(CFLAGS) -S -o $@ $(@:.s=.c)
-
-test: $(T_T)
-	@for t in $(T_T); do \
-	  (echo "+ $$t" ; $$t ; echo "exit($$?)") | tee $$t.out ;\
-	done
-	@error=0; for t in $(T_T); do \
-	  diff -u $$t.exp $$t.out || error=1 ;\
-	done ; exit $$error
-	@echo test: OK
-
-clean:
-	rm -f $(GEN_H)
-	rm -f src/*.o src/lib*.a t/*.t
-	rm -rf t/*.dSYM
-	rm -rf $(BIN_E) bin/*.dSYM
-
+	$(CC) $(CFLAGS) -S -o - $(@:.s=.c) | tool/asm-source > $@
