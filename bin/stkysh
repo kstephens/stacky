@@ -1,2 +1,2 @@
 #!/bin/sh
-exec rlwrap -S " stky# " "$0.bin" "$@"
+exec rlwrap -p yellow -S " stky# " "$(dirname "$0")/../stky" "$@"
