@@ -588,10 +588,13 @@ void stky_eval(stky_v v)
 {
  again:
   switch ( stky_v_t_(v) ) {
-  case 0:  if ( v ) (stky_v_f_(v))();  break; // proc: invoke it.
+  case 0:
+    if ( v ) (stky_v_f_(v))();  // proc: invoke it.
+    else     goto other;        // null: other ...
+    break;
   case 1:  stky_push(v);      break; // integer: push it.
   case 2:  stky_push(v); stky_e(eval_symbol);  break; // symbol: lookup->exec or push it. 
-  default: // other: other...
+  default: other: // other: other...
     stky_push(v);
     v = stky_O(stky_v_T_(v), type)->eval;
     goto again;
