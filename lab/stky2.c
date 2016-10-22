@@ -2,8 +2,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <setjmp.h>
+#include <stdint.h>
 #include <dlfcn.h>
 #include "gc/gc.h"
+
+#define paste2_(A,B) A##B
+#define paste2(A,B) paste2_(A,B)
 
 #define stky_inline static __inline__ __attribute__((always_inline))
 
@@ -15,8 +19,10 @@ typedef intptr_t stky_i;
 typedef void (*stky_f)();
 typedef void *stky_o;
 
+#ifndef TYPE
 #define TYPE(N) stky_v t_##N; struct stky_##N; typedef struct stky_##N stky_##N;
 #include "types.h"
+#endif
 
 typedef struct stky_hdr {
   stky_i flags;
@@ -43,14 +49,19 @@ struct stky_array {
   stky_v *b, *p, *e;
 };
 
-struct stky_dict {
-  stky_array _;
-  stky_v cmp; // a b cmp | {-1,0,1}
-};
-
 struct stky_string {
   size_t s;
   char *b, *p, *e;
+};
+
+struct stky_u8array {
+  size_t s;
+  uint8_t *b, *p, *e;
+};
+
+struct stky_dict {
+  stky_array _;
+  stky_v cmp; // a b cmp | {-1,0,1}
 };
 
 struct stky_symbol {
@@ -77,7 +88,7 @@ stky_inline stky_hdr* stky_v_h_(stky_v v)   { return ((stky_hdr*) stky_v_o_(v)) 
 
 stky_inline stky_v    stky_v_c (int v)      { return stky_v_i(v); }
 stky_inline int       stky_v_c_(stky_v v)   { return stky_v_i_(v); }
-#define stky_O(v,type) ((stky_##type*) stky_v_o_(v))
+#define stky_O(v,type) ((paste2(stky_,type)*) stky_v_o_(v))
 
 stky_v stky_v_T_(stky_v v)
 {
@@ -101,31 +112,6 @@ void* stky_type_alloc(stky_v t)
   return hdr + 1;
 }
 
-void stky_string_resize(stky_string *self, size_t s)
-{
-  size_t ms = sizeof(self->b[0]) * (s + 1);
-  char *b = self->b ?
-    GC_realloc(self->b, ms) :
-    GC_malloc_atomic(ms);
-  self->p = b + (self->p - self->b);
-  *(self->e = (self->b = b) + (self->s = s)) = 0;
-}
-void stky_string_init(stky_string* self, size_t s)
-{
-  self->b = self->p = self->e = 0;
-  self->s = 0;
-  stky_string_resize(self, s);
-}
-stky_v stky_string_new(const char *v, int s)
-{
-  if ( s < 0 ) s = strlen(v);
-  stky_string* self = stky_type_alloc(t_string);
-  stky_string_init(self, s);
-  memcpy(self->b, v, sizeof(self->b[0]) * (s + 1));
-  self->p = self->b + s;
-  return stky_v_o(self);
-}
-
 static stky_array* v_stack;
 void stky_array_push(stky_array *self, stky_v v);
 stky_inline void   stky_push(stky_v v)    { stky_array_push(v_stack, v); }
@@ -133,32 +119,24 @@ stky_inline stky_v stky_pop()             { return v_stack->p > v_stack->b ? *(-
 stky_inline void   stky_popn(size_t n)    { v_stack->p -= n; }
 stky_inline stky_v stky_top()             { return v_stack->p[-1]; }
 
-static stky_array* e_stack;
-stky_inline void   stky_e_push(stky_v v)  { stky_array_push(e_stack, v); }
-stky_inline stky_v stky_e_pop()           { return *(-- e_stack->p); }
-stky_inline stky_v stky_e_top()           { return e_stack->p[-1]; }
-
-static stky_array* d_stack;
-
-static stky_v mark;
+static stky_v v_mark;
 
 #define V(i) (v_stack->p[-(i) - 1])
 
-#define stky_f(name) stky_f_##name
-#define stky_FD(name) void stky_F_##name(); extern stky_f stky_f(name);
-#define stky_F(name) void stky_F_##name(); stky_f stky_f(name) = stky_F_##name; void stky_F_##name()
+#define stky_f(name) paste2(stky_f_,name)
+#define stky_FD(name) void paste2(stky_F_,name)(); extern stky_f stky_f(name);
+#ifndef stky_F
+#define stky_F(name) void paste2(stky_F_,name)(); stky_f stky_f(name) = paste2(stky_F_,name); void paste2(stky_F_,name)()
+#endif
 #define stky_e(name) stky_eval(stky_f(name))
 
 void stky_eval(stky_v v);
-
-stky_F(eval_object) {
-}
 
 void stky_callv(const stky_v *v)
 {
   while ( v[1] )
     stky_push(*(v ++));
-  stky_eval(*v); // TAIL CALL.
+  stky_eval(*v); // TAILCALL
 }
 #define stky_call(...) ({ stky_v _argv[] = { __VA_ARGS__, 0, 0 }; stky_callv(_argv); })
 
@@ -166,7 +144,7 @@ void stky_execv(const stky_v *v)
 {
   while ( v[1] )
     stky_eval(*(v ++));
-  stky_eval(*v); // TAIL CALL.
+  stky_eval(*v); // TAILCALL
 }
 #define stky_exec(...) ({ stky_v _argv[] = { __VA_ARGS__, 0, 0 }; stky_execv(_argv); })
 
@@ -197,13 +175,13 @@ stky_F(set_type) // v type | v
   default:  stky_v_h_(v)->type = type; break;
   }
 }
-stky_F(nop) { }
+stky_F(nop)  { }
 stky_F(exec) { stky_eval(stky_pop()); }
 stky_F(dup)  { stky_push(V(0)); }
 stky_F(pop)  { stky_pop(); }
 stky_F(popn) { stky_popn(stky_v_i_(stky_pop())); }
 stky_F(exch) { stky_v t = V(0); V(0) = V(1); V(1) = t; }
-stky_F(mark) { stky_push(mark); }
+stky_F(mark) { stky_push(v_mark); }
 stky_inline int stky_v_execQ(stky_v v)
 {
   return stky_v_h_(v)->flags & 4;
@@ -219,20 +197,45 @@ stky_F(set_meta) { // o m | o
   stky_v_h_(stky_top())->meta = m;
 }
 stky_F(v_stack) { stky_push(stky_v_o(v_stack)); }
-stky_F(e_stack) { stky_push(stky_v_o(e_stack)); }
-stky_F(d_stack) { stky_push(stky_v_o(d_stack)); }
 stky_F(count_to_mark) // [ ... mark v1 v2 .. vn ] | n
 {
   size_t c = 0;
   stky_array *a = stky_v_o_(stky_pop());
   stky_v* v = a->p;
-  while ( -- v > a->b && *v != mark )
+  while ( -- v > a->b && *v != v_mark )
     c ++;
   stky_push(stky_v_i(c));
 }
 
 #define T array
+#define T_t stky_v
+#define T_box(V) (V)
+#define T_unbox(V) (V)
 #include "vec.c"
+
+#define T string
+#define T_t char
+#define T_box(V)   stky_v_c(V)
+#define T_unbox(V) stky_v_c_(V)
+#include "vec.c"
+
+#define T u8array
+#define T_t uint8_t
+#define T_box(V)   stky_v_i(V)
+#define T_unbox(V) stky_v_i_(V)
+#include "vec.c"
+
+
+stky_v stky_string_new(const char *v, int s)
+{
+  if ( s < 0 ) s = strlen(v);
+  stky_string* self = stky_type_alloc(t_string);
+  stky_string_init(self, s);
+  memcpy(self->b, v, sizeof(self->b[0]) * (s + 1));
+  self->p = self->b + s;
+  return stky_v_o(self);
+}
+
 
 stky_v array_exec_begin, array_exec_end;
 int defer_eval = 0;
@@ -259,6 +262,11 @@ stky_F(eval_inner)
   }
 }
 
+static stky_array* e_stack;
+stky_inline void   stky_e_push(stky_v v)  { stky_array_push(e_stack, v); }
+stky_inline stky_v stky_e_pop()           { return *(-- e_stack->p); }
+// stky_inline stky_v stky_e_top()           { return e_stack->p[-1]; }
+stky_F(e_stack) { stky_push(stky_v_o(e_stack)); }
 stky_F(eval_array) {
   if ( stky_v_execQ(V(0)) ) {
     stky_array* a = stky_O(stky_pop(), array);
@@ -358,6 +366,8 @@ stky_F(eval_dict) {
   }
 }
 
+static stky_array* d_stack;
+stky_F(d_stack) { stky_push(stky_v_o(d_stack)); }
 stky_F(eval_symbol) { // sym | v
   stky_e(d_stack);
   stky_e(dicts_get);
@@ -369,13 +379,6 @@ stky_F(string_to_symbol) { // str | sym
   stky_v sym = stky_v_o(stky_type_alloc(t_symbol));
   stky_O(sym, symbol)->name = V(0);
   stky_call(sym, sym_dict, stky_f(dict_getsert));
-}
-stky_F(string_push) { // string v |
-  int v = stky_v_c_(stky_pop());
-  stky_string* self = stky_O(stky_pop(), string);
-  if ( self->p >= self->e )
-    stky_string_resize(self, self->s * 3 / 2 + 3);
-  *(self->p ++) = v;
 }
 stky_F(charP_to_string) { // char* | string
   stky_push(stky_string_new(stky_pop(), -1));
@@ -433,11 +436,8 @@ stky_F(close) { // IO |
 stky_v stky_io_new_FILEP(FILE *fp, const char *name, const char *mode)
 {
   stky_io *o = stky_type_alloc(t_io);
-  if ( ! fp ) { 
-    if ( ! (fp = fopen(name, mode)) ) {
-      perror("Cannot open file");
-    }
-  }
+  if ( ! fp && ! (fp = fopen(name, mode)) )
+    perror("Cannot open file");
   o->opaque  = fp;
   o->name    = stky_string_new(name, -1);
   o->mode    = stky_string_new(mode, -1);
@@ -483,7 +483,7 @@ stky_F(read_token)
   }
   switch ( state ) {
   case s_error:
-    stky_call(token, stky_v_c(c), stky_f(string_push));
+    stky_call(stky_v_c(c), token, stky_f(string_push));
     value = token;
   case s_eos:
   case s_stop:
@@ -497,7 +497,7 @@ stky_F(read_token)
     case '/':
       literal ++; next_c();
     case '-': case '+':
-      stky_call(token, stky_v_c(c), stky_f(string_push));
+      stky_call(stky_v_c(c), token, stky_f(string_push));
       pot_num_c = c; take_c();
       next_s(s_pot_num);
     case '0' ... '9':
@@ -525,7 +525,7 @@ stky_F(read_token)
       stky_call(token, stky_f(string_to_symbol));
       value = stky_pop(); next_s(s_stop);
     default:
-      stky_call(token, stky_v_c(c), stky_f(string_push));
+      stky_call(stky_v_c(c), token, stky_f(string_push));
       next_c();
     }
   case s_pot_num:
@@ -538,7 +538,7 @@ stky_F(read_token)
   case s_int:
     switch ( c ) {
     case '0' ... '9':
-      stky_call(token, stky_v_c(c), stky_f(string_push));
+      stky_call(stky_v_c(c), token, stky_f(string_push));
       {
         stky_i prev_n = n;
         n = n * 10 + c - '0';
@@ -563,7 +563,7 @@ stky_F(read_token)
     case '"':
       value = token; take_c(); next_s(s_stop);
     default:
-      stky_call(token, stky_v_c(c), stky_f(string_push));
+      stky_call(stky_v_c(c), token, stky_f(string_push));
       next_c();
     }
   default:
@@ -588,7 +588,7 @@ void stky_eval(stky_v v)
 {
  again:
   switch ( stky_v_t_(v) ) {
-  case 0:  (stky_v_f_(v))();  break; // proc: invoke it.
+  case 0:  if ( v ) (stky_v_f_(v))();  break; // proc: invoke it.
   case 1:  stky_push(v);      break; // integer: push it.
   case 2:  stky_push(v); stky_e(eval_symbol);  break; // symbol: lookup->exec or push it. 
   default: // other: other...
@@ -623,7 +623,6 @@ stky_F(print_voidP) {
 stky_F(array_end) { // mark v0 .. vn ] | [ v0 .. vn ]
   stky_exec(stky_f(v_stack), stky_f(count_to_mark),
             stky_f(array_make), stky_f(exch), stky_f(pop));
-  
 }  
 stky_F(array_end_exec) { // mark v0 .. vn | { v0 .. vn }
   stky_exec(stky_f(array_end), stky_f(set_exec)); 
@@ -634,7 +633,7 @@ stky_F(make_selector) { // default_method
             stky_f(array_make), stky_f(array_to_dict));
   stky_v methods = stky_pop();
   stky_call((stky_v) 0, default_method, methods, stky_f(dict_set));
-  stky_call(mark,
+  stky_call(v_mark,
             stky_f(dup),   // obj | obj
             stky_f(type),  // obj | type(obj)
             methods,       // obj | type(obj) methods
@@ -658,6 +657,11 @@ stky_v print_methods;
 stky_FD(print_object);
 stky_F(print) {
   stky_v v = V(0);
+  if ( stky_v_o_(v) == v_stack ) {
+    stky_pop();
+    printf("<<v_stack>>");
+    return;
+  }
   stky_push(v);
   stky_e(type);
   stky_push(print_methods);
@@ -712,6 +716,10 @@ stky_F(print_dict) {
   stky_call(stky_f(print_space), stky_f(array_each));
   printf("}}");
 }
+stky_F(print_mark) {
+  stky_pop();
+  printf("<<mark>>");
+}
 stky_F(print_object) {
   stky_e(dup);
   stky_e(type);
@@ -746,7 +754,9 @@ stky_F(eval_io) {
       stky_e(println);
     }
     // stky_call(sym_dict, stky_f(println));
-    stky_call(stky_v_o(v_stack), stky_f(println));
+    printf("  # v_stack: ");
+    stky_call(stky_v_o(v_stack), stky_f(print_array));
+    printf("\n");
   }
 }
 
@@ -765,9 +775,11 @@ void stky_init()
   GC_init();
   t_type = stky_v_o(GC_malloc(sizeof(stky_hdr) + sizeof(stky_type)) + sizeof(stky_hdr));
   stky_O(t_type, type)->size = stky_v_i(sizeof(stky_type));
+#ifndef TYPE
 #define TYPE(N)                                                 \
-  t_##N = stky_v_o(stky_type_alloc(t_type));                    \
-  stky_O(t_type, type)->size = stky_v_i(sizeof(stky_type)); 
+  t_##N = t_##N ?: stky_v_o(stky_type_alloc(t_type));            \
+  stky_O(t_type, type)->size = stky_v_i(sizeof(stky_type));
+  TYPE(type)
 #include "types.h"
 
 #define TYPE(N)                                        \
@@ -775,8 +787,9 @@ void stky_init()
   stky_O(t_##N, type)->name = stky_string_new(#N, -1);   \
   stky_O(t_##N, type)->size = stky_v_i(sizeof(stky_##N)); \
   stky_O(t_##N, type)->id   = stky_v_i(++ id); \
-  stky_O(t_##N, type)->eval = stky_f(eval_object);
+  stky_O(t_##N, type)->eval = stky_f(nop);
 #include "types.h"
+#endif
 
   stky_O(t_array , type)->eval = stky_f(eval_array);
   stky_O(t_dict  , type)->eval = stky_f(eval_dict);
@@ -784,7 +797,7 @@ void stky_init()
   stky_O(t_io,     type)->eval = stky_f(eval_io);
   stky_O(t_cell,   type)->eval = stky_f(eval_cell);
 
-  mark = stky_v_o(stky_type_alloc(t_mark));
+  v_mark = stky_v_o(stky_type_alloc(t_mark));
   stky_array_init(v_stack = stky_type_alloc(t_array), 1024);
   stky_array_init(e_stack = stky_type_alloc(t_array), 1024);
   stky_array_init(d_stack = stky_type_alloc(t_array), 1024);
@@ -794,7 +807,7 @@ void stky_init()
   sym_dict = stky_pop();
   stky_O(sym_dict, dict)->cmp = stky_f(cmp_string);
 
-  stky_call(mark,
+  stky_call(v_mark,
             t_fun,    stky_f(print_fun),
             t_fixnum, stky_f(print_fixnum),
             t_symbol, stky_f(print_symbol),
@@ -803,6 +816,7 @@ void stky_init()
             t_array,  stky_f(print_array),
             t_dict,   stky_f(print_dict),
             t_cell,   stky_f(print_cell),
+            t_mark,   stky_f(print_mark),
             stky_f(nop));
   stky_exec(stky_f(v_stack), stky_f(count_to_mark),
             stky_f(array_make), stky_f(array_to_dict),
@@ -818,32 +832,15 @@ void stky_init()
   stky_exec(stky_f(array_make), stky_f(array_to_dict));
   core_dict = stky_pop();
   stky_call(core_dict, stky_v_o(d_stack), stky_f(array_push));
-  stky_call(stky_symbol_new("["),  mark, core_dict, stky_f(dict_set));
+  stky_call(stky_symbol_new("["),  v_mark, core_dict, stky_f(dict_set));
   stky_call(stky_symbol_new("]"), stky_f(array_end), core_dict, stky_f(dict_set));
-  stky_call(stky_symbol_new("{{"),  mark, core_dict, stky_f(dict_set));
-  stky_call(array_exec_begin = stky_symbol_new("{"), mark, core_dict, stky_f(dict_set));
+  stky_call(stky_symbol_new("{{"), v_mark, core_dict, stky_f(dict_set));
+  stky_call(array_exec_begin = stky_symbol_new("{"), v_mark, core_dict, stky_f(dict_set));
   stky_call(array_exec_end = stky_symbol_new("}"), stky_f(array_end_exec), core_dict, stky_f(dict_set));
 #define F(N) \
   stky_call(stky_symbol_new("&" #N), stky_f(N), core_dict, stky_f(dict_set));
-  F(type);
-  F(pop);
-  F(popn);
-  F(dup);
-  F(exch);
-  F(exec);
-  F(array_len);
-  F(array_get);
-  F(array_top);
-  F(dict_get);
-  F(dict_set);
-  F(dict_getsert);
-  F(sym_dict);
-  F(d_stack);
-  F(e_stack);
-  F(core_dict);
-#define BOP(n,op) F(fx_##n);
-#define UOP(n,op) F(fx_##n);
-#include "cops.h"
+#define def_stky_F(N) F(N);
+#include "prims.h"
 
   // NON-CORE:
   F(print);
