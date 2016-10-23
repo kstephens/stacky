@@ -821,6 +821,12 @@ stky_v stky_symbol_new(const char* s)
 stky_v core_dict;
 stky_F(core_dict) { stky_push(core_dict); }
 
+void stky_def_ref(const char *k, void *r)
+{
+  stky_call(stky_symbol_new(k), r, stky_f(ref_make));
+  stky_call(core_dict, stky_f(dict_set_ref));
+}
+
 void stky_init()
 {
   int id = 0;
@@ -890,8 +896,9 @@ void stky_init()
   stky_call(stky_symbol_new("{{"), v_mark, core_dict, stky_f(dict_set));
   stky_call(array_exec_begin = stky_symbol_new("{"), v_mark, core_dict, stky_f(dict_set));
   stky_call(array_exec_end = stky_symbol_new("}"), stky_f(array_end_exec), core_dict, stky_f(dict_set));
-#define F(N) \
-  stky_call(stky_symbol_new("&" #N), stky_f(N), core_dict, stky_f(dict_set));
+#define TYPE(N) stky_def_ref("&<" #N ">", &t_##N);
+#include "types.h"
+#define F(N) stky_def_ref("&" #N, &stky_f(N))
 #define def_stky_F(N) F(N);
 #include "prims.h"
 
