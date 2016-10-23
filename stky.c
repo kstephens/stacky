@@ -141,7 +141,8 @@ void stky_callv(const stky_v *v)
     stky_push(*(v ++));
   stky_eval(*v); // TAILCALL
 }
-#define stky_call(...) ({ stky_v _argv[] = { __VA_ARGS__, 0, 0 }; stky_callv(_argv); })
+#define stky_call(...)  ({ stky_v _argv[] = { __VA_ARGS__, 0, 0 }; stky_callv(_argv); })
+#define stky_callp(...) ({ stky_call(__VA_ARGS__); stky_pop(); })
 
 void stky_execv(const stky_v *v)
 {
@@ -344,10 +345,7 @@ stky_F(dict_get) { // k dict | v
   stky_v k = stky_pop();
   stky_v *p = d->_.b;
   while ( p < d->_.p ) {
-    stky_push(k);
-    stky_push(p[0]);
-    stky_eval(d->cmp);
-    if ( stky_v_i_(stky_pop()) == 0 )
+    if ( ! stky_v_i_(stky_callp(k, p[0], d->cmp)) )
       { v = p[1]; break; }
     p += 2;
   }
@@ -359,8 +357,7 @@ stky_F(dict_set) { // k v dict |
   stky_v k = stky_pop();
   stky_v *p = d->_.b;
   while ( p < d->_.p ) {
-    stky_call(k, p[0], d->cmp);
-    if ( stky_v_i_(stky_pop()) == 0 )
+    if ( ! stky_v_i_(stky_callp(k, p[0], d->cmp)) )
       { p[1] = v; return; }
     p += 2;
   }
@@ -541,8 +538,8 @@ stky_F(read_token)
     switch ( c ) {
     case EOF:
     case ' ': case '\t': case '\n': case '\r':
-      stky_call(token, stky_f(string_to_symbol));
-      value = stky_pop(); next_s(s_stop);
+      value = stky_callp(token, stky_f(string_to_symbol));
+      next_s(s_stop);
     default:
       stky_call(stky_v_c(c), token, stky_f(string_push));
       next_c();
@@ -596,7 +593,7 @@ stky_F(read_token)
   if ( c >= 0 )
     stky_call(stky_v_c(c), stky_v_o(in), stky_f(unread_char));
   while ( literal -- ) {
-    value = stky_cell_new(value);
+    value = stky_callp(value, stky_f(cell_new));
     last_state = s_literal;
   }
   stky_push(value);
@@ -788,8 +785,7 @@ stky_F(eval_io) {
 
 stky_v stky_symbol_new(const char* s)
 {
-  stky_call(stky_string_new(s, -1), stky_f(string_to_symbol));
-  return stky_pop();
+  return stky_callp(stky_string_new(s, -1), stky_f(string_to_symbol));
 }
 
 stky_v core_dict;
