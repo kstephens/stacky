@@ -336,10 +336,13 @@ stky_F(array_to_dict) // [ k1 v1 ... kn vn ] | @[ dict ]@
   stky_array_init(&d->_, s);
   memcpy(d->_.b, a->b, sizeof(a->p[0]) * s);
   d->_.p += s;
+  for ( stky_v *p = d->_.b; p < d->_.p ; p += 2 ) {
+    p[1] = stky_callp(p[1], stky_f(ref_new));
+  }
   d->cmp = stky_f(cmp_word);
   stky_push(stky_v_o(d));
 }
-stky_F(dict_get) { // k dict | v
+stky_F(dict_get_ref) {  // k dict | r
   stky_dict* d = stky_O(stky_pop(), dict);
   stky_v v = 0;
   stky_v k = stky_pop();
@@ -351,7 +354,7 @@ stky_F(dict_get) { // k dict | v
   }
   stky_push(v);
 }
-stky_F(dict_set) { // k v dict | 
+stky_F(dict_set_ref) { // k r dict | 
   stky_dict* d = stky_O(stky_pop(), dict);
   stky_v v = stky_pop();
   stky_v k = stky_pop();
@@ -364,14 +367,40 @@ stky_F(dict_set) { // k v dict |
   stky_call(k, stky_v_o(d), stky_f(array_push));
   stky_call(v, stky_v_o(d), stky_f(array_push));
 }
+stky_F(dict_add) { // k v dict |
+  stky_v d = stky_pop();
+  stky_v v = stky_pop();
+  stky_v k = stky_pop();
+  stky_call(k, d, stky_f(array_push));
+  stky_call(v, stky_f(ref_new));
+  stky_call(d, stky_f(array_push));
+}
+stky_F(dict_get) { // k dict | v
+  stky_e(dict_get_ref);
+  if ( V(0) ) V(0) = *stky_v_r_(V(0));
+}
+stky_F(dict_set) { // k v dict |
+  stky_v d = stky_pop();
+  stky_v v = stky_pop();
+  stky_v k = stky_pop();
+  stky_call(k, d, stky_f(dict_get_ref));
+  if ( V(0) ) {
+    *stky_v_r_(V(0)) = v;
+  } else {
+    stky_pop();
+    stky_call(k, v, d, stky_f(dict_add));
+  }
+}
 stky_F(dict_getsert) { // k v dict | v
   stky_v d = stky_pop();
   stky_v v = stky_pop();
   stky_v k = stky_pop();
-  stky_call(k, d, stky_f(dict_get));
-  if ( ! stky_top() ) {
-    stky_pop();
-    stky_call(v, k, v, d, stky_f(dict_set));
+  stky_call(k, d, stky_f(dict_get_ref));
+  if ( V(0) ) {
+    V(0) = *stky_v_r_(V(0));
+  } else {
+    V(0) = v;
+    stky_call(k, v, d, stky_f(dict_add));
   }
 }
 stky_F(dicts_get) { // k dicts | v
@@ -379,9 +408,11 @@ stky_F(dicts_get) { // k dicts | v
   stky_v k = stky_pop();
   stky_v* p = ds->p;
   while ( p > ds->b ) {
-    stky_call(k, *(-- p), stky_f(dict_get));
-    if ( stky_top() )
+    stky_call(k, *(-- p), stky_f(dict_get_ref));
+    if ( stky_top() ) {
+      stky_e(ref_get);
       return;
+    }
     stky_pop();
   }
   stky_push(0);
