@@ -50,8 +50,8 @@ stky_FT(T,push) { // v array |
   stky_T(T,_push)(self, v);
 }
 stky_FT(T,len) { // [ e0 ... en ] | n - 1
-  stky_T(T,)* self = stky_O(stky_pop(), T);
-  stky_push(stky_v_i(self->p - self->b));
+  stky_T(T,)* self = stky_O(V(0), T);
+  V(0) = stky_v_i(self->p - self->b);
 }
 stky_FT(T,top) { // [ e0 ... en ] | en
   V(0) = T_box(stky_O(V(0), T)->p[-1]);
