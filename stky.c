@@ -32,6 +32,7 @@ typedef struct stky_hdr {
 
 struct stky_object { };
 struct stky_fun { };
+struct stky_ref { };
 struct stky_fixnum { };
 struct stky_null { };
 struct stky_mark { };
@@ -82,6 +83,8 @@ stky_inline stky_v    stky_v_f (stky_f v)   { return  (stky_v) v; }
 stky_inline stky_f    stky_v_f_(stky_v v)   { return  (stky_f) v; }
 stky_inline stky_v    stky_v_i (stky_i v)   { return  (stky_v) (((v) << 2) + 1) ; }
 stky_inline stky_i    stky_v_i_(stky_v v)   { return ((stky_i)  (v)) >> 2       ; }
+stky_inline stky_v    stky_v_r (stky_v* v)  { return           (((void*) v) + 2); }
+stky_inline stky_v*   stky_v_r_(stky_v v)   { return (stky_v*) (((void*) v) - 2); }
 stky_inline stky_v    stky_v_o (stky_o v)   { return ((void*) v) + 3; }
 stky_inline stky_o    stky_v_o_(stky_v v)   { return ((void*) v) - 3; }
 stky_inline stky_hdr* stky_v_h_(stky_v v)   { return ((stky_hdr*) stky_v_o_(v)) - 1; }
@@ -95,7 +98,7 @@ stky_v stky_v_T_(stky_v v)
   switch ( stky_v_t_(v) ) {
   case 0:   return v ? t_fun : t_null;
   case 1:   return t_fixnum;
-  case 2:   return t_symbol;
+  case 2:   return t_ref;
   default:  return stky_v_h_(v)->type;
   }
 }
@@ -196,6 +199,32 @@ stky_F(set_meta) { // o m | o
   stky_v m = stky_pop();
   stky_v_h_(stky_top())->meta = m;
 }
+stky_F(cell_new) { // v | c(v)
+  stky_cell* self = stky_type_alloc(t_cell);
+  self->value = V(0);
+  V(0) = stky_v_o(self);
+}
+stky_F(eval_cell) { // cell | value(cell)
+  V(0) = stky_O(V(0), cell)->value;
+}
+stky_F(ref_make) { // * | r(*)
+  V(0) = stky_v_r(V(0));
+}
+stky_F(ref_new) { // v | r(v)
+  stky_e(cell_new);
+  V(0) = stky_v_r(stky_v_o_(V(0)));
+}
+stky_F(ref_get) { // r | *r
+  V(0) = *stky_v_r_(V(0));
+}
+stky_F(ref_set) { // v r |
+  *stky_v_r_(V(0)) = V(1);
+  stky_popn(2);
+}
+stky_F(eval_ref) {  // ref | *ref
+  V(0) = *stky_v_r_(V(0));
+}
+
 stky_F(v_stack) { stky_push(stky_v_o(v_stack)); }
 stky_F(count_to_mark) // [ ... mark v1 v2 .. vn ] | n
 {
@@ -395,16 +424,6 @@ stky_F(fun_to_string) { // fun | str
     stky_push(stky_string_new(info.dli_sname, -1));
   else
     stky_push(0);
-}
-
-stky_v stky_cell_new(stky_v v)
-{
-  stky_cell* self = stky_type_alloc(t_cell);
-  self->value = v;
-  return stky_v_o(self);
-}
-stky_F(eval_cell) { // cell | value(cell)
-  V(0) = stky_O(V(0), cell)->value;
 }
 
 stky_F(io_write_string) // str IO |
@@ -704,6 +723,10 @@ stky_F(print_cell) {
   stky_call("/", stky_f(write_charP));
   stky_call(stky_O(stky_pop(), cell)->value, stky_f(print));
 }
+stky_F(print_ref) {
+  stky_call("@", stky_f(write_charP));
+  stky_e(print_voidP);
+}
 stky_F(print_type) {
   stky_call("@type:", stky_f(write_charP));
   stky_call(stky_O(stky_pop(), type)->name, stky_f(write_string));
@@ -819,6 +842,7 @@ void stky_init()
             t_array,  stky_f(print_array),
             t_dict,   stky_f(print_dict),
             t_cell,   stky_f(print_cell),
+            t_ref,    stky_f(print_ref),
             t_mark,   stky_f(print_mark),
             stky_f(nop));
   stky_exec(stky_f(v_stack), stky_f(count_to_mark),
