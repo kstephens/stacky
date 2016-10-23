@@ -135,22 +135,23 @@ static stky_v v_mark;
 
 void stky_eval(stky_v v);
 
+#define v_END ((stky_v) ~0UL)
 void stky_callv(const stky_v *v)
 {
-  while ( v[1] )
+  while ( v[1] != v_END )
     stky_push(*(v ++));
   stky_eval(*v); // TAILCALL
 }
-#define stky_call(...)  ({ stky_v _argv[] = { __VA_ARGS__, 0, 0 }; stky_callv(_argv); })
+#define stky_call(...)  ({ stky_v _argv[] = { __VA_ARGS__, v_END, v_END }; stky_callv(_argv); })
 #define stky_callp(...) ({ stky_call(__VA_ARGS__); stky_pop(); })
 
 void stky_execv(const stky_v *v)
 {
-  while ( v[1] )
+  while ( v[1] != v_END )
     stky_eval(*(v ++));
   stky_eval(*v); // TAILCALL
 }
-#define stky_exec(...) ({ stky_v _argv[] = { __VA_ARGS__, 0, 0 }; stky_execv(_argv); })
+#define stky_exec(...) ({ stky_v _argv[] = { __VA_ARGS__, v_END, v_END }; stky_execv(_argv); })
 
 #define BOP(n,op) \
   stky_F(fx_##n)  \
