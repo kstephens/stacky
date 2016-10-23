@@ -232,9 +232,7 @@ stky_F(count_to_mark) // [ ... mark v1 v2 .. vn ] | n
 {
   size_t c = 0;
   stky_array *a = stky_v_o_(stky_pop());
-  stky_v* v = a->p;
-  while ( -- v > a->b && *v != v_mark )
-    c ++;
+  for ( stky_v* v = a->p; -- v > a->b && *v != v_mark; ++ c ) ;
   stky_push(stky_v_i(c));
 }
 
@@ -266,7 +264,6 @@ stky_v stky_string_new(const char *v, int s)
   self->p = self->b + s;
   return stky_v_o(self);
 }
-
 
 stky_v array_exec_begin, array_exec_end;
 int defer_eval = 0;
@@ -670,7 +667,7 @@ stky_F(print_voidP) {
   printf("%p", stky_pop());
 }
 
-stky_F(array_end) { // mark v0 .. vn ] | [ v0 .. vn ]
+stky_F(array_end) { // mark v0 .. vn | [ v0 .. vn ]
   stky_exec(stky_f(v_stack), stky_f(count_to_mark),
             stky_f(array_make), stky_f(exch), stky_f(pop));
 }  
@@ -897,8 +894,10 @@ void stky_init()
   stky_call(stky_symbol_new("{{"), v_mark, core_dict, stky_f(dict_set));
   stky_call(array_exec_begin = stky_symbol_new("{"), v_mark, core_dict, stky_f(dict_set));
   stky_call(array_exec_end = stky_symbol_new("}"), stky_f(array_end_exec), core_dict, stky_f(dict_set));
+#ifndef TYPE
 #define TYPE(N) stky_def_ref("&<" #N ">", &t_##N);
 #include "types.h"
+#endif
 #define F(N) stky_def_ref("&" #N, &stky_f(N))
 #define def_stky_F(N) F(N);
 #include "prims.h"
