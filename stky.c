@@ -525,8 +525,7 @@ stky_F(read_token)
   last_state = last_state_2; last_state_2 = state;
   if ( ! token ) token = stky_string_new("", 0);
   if ( c == -2 ) {
-    stky_call(stky_v_o(in), stky_f(read_char));
-    c = stky_v_c_(stky_pop());
+    c = stky_v_c_(stky_callp(stky_v_o(in), stky_f(read_char)));
   }
   switch ( state ) {
   case s_error:
