@@ -154,13 +154,13 @@ stky_v stky_execv(const stky_v *v)
 #define stky_exec(...) ({ stky_v _argv[] = { __VA_ARGS__, v_END, v_END }; stky_eval(stky_execv(_argv)); })
 
 #define BOP(n,op) \
-  stky_F(fx_##n)  \
+  stky_F(fx##n)  \
   { \
   V(1) = stky_v_i(stky_v_i_(V(1)) op stky_v_i_(V(0))); \
   stky_pop(); \
   }
 #define UOP(n,op) \
-  stky_F(fx_##n)  \
+  stky_F(fx##n)  \
   { \
   V(0) = stky_v_i(op stky_v_i_(V(0))); \
   }
@@ -676,9 +676,8 @@ stky_F(array_end_exec) { // mark v0 .. vn | { v0 .. vn }
 }
 stky_F(make_selector) { // default_method
   stky_v default_method = stky_pop();
-  stky_exec(stky_f(v_stack), stky_v_i(0),
-            stky_f(array_make), stky_f(array_to_dict));
-  stky_v methods = stky_pop();
+  stky_call(v_mark, stky_f(array_end));
+  stky_v methods = stky_callp(stky_f(array_to_dict));
   stky_call((stky_v) 0, default_method, methods, stky_f(dict_set));
   stky_call(v_mark,
             stky_f(dup),   // obj | obj
@@ -690,9 +689,7 @@ stky_F(make_selector) { // default_method
             stky_f(dict_get), // obj | method(type) default_method
             stky_f(or),  // obj | method
             stky_f(exec), // obj | ...
-            stky_f(nop));
-  stky_exec(stky_f(array_end_exec));
-  // stky_v fun = stky_top();
+            stky_f(array_end_exec));
   stky_call(methods, stky_f(set_meta));
 }
 stky_F(add_method) { // type method selector
