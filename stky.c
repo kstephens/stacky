@@ -166,6 +166,9 @@ stky_v stky_execv(const stky_v *v)
   }
 #include "cops.h"
 
+stky_FD(print_object);
+stky_FD(println);
+
 stky_F(type) // v | type(v)
 {
   V(0) = stky_v_T_(V(0));
@@ -877,6 +880,8 @@ void stky_init()
             stky_f(exch), stky_f(pop));
   print_methods = stky_pop();
   // stky_call(print_methods, stky_f(println));
+  stky_call(stky_f(print_object), stky_f(make_selector));
+  stky_call(stky_f(println));
 
   stky_stdin  = stky_io_new_FILEP(stdin,  "<stdin>",  "r");
   stky_stdout = stky_io_new_FILEP(stdout, "<stdout>", "w");
