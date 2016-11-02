@@ -301,10 +301,10 @@ stky_F(eval_array) {
     stky_v *p = a->b;
     if ( p < a->p ) {
       stky_e_push(stky_v_o(a));
-      do {
+      while ( p + 1 < a->p ) {
         stky_push(*(p ++));
         stky_e(eval_inner);
-      } while ( p < a->p - 1 );
+      }
       stky_e_pop();
       stky_push(*p);
       stky_e(eval_inner);
