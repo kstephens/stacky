@@ -891,11 +891,8 @@ void stky_init()
   stky_exec(stky_f(array_make), stky_f(array_to_dict));
   core_dict = stky_pop();
   stky_call(core_dict, stky_v_o(d_stack), stky_f(array_push));
-  stky_call(stky_symbol_new("["),  v_mark, core_dict, stky_f(dict_set));
-  stky_call(stky_symbol_new("]"), stky_f(array_end), core_dict, stky_f(dict_set));
-  stky_call(stky_symbol_new("{{"), v_mark, core_dict, stky_f(dict_set));
-  stky_call(array_exec_begin = stky_symbol_new("{"), v_mark, core_dict, stky_f(dict_set));
-  stky_call(array_exec_end = stky_symbol_new("}"), stky_f(array_end_exec), core_dict, stky_f(dict_set));
+  array_exec_begin = stky_symbol_new("{");
+  array_exec_end = stky_symbol_new("}");
 #ifndef TYPE
 #define TYPE(N) stky_def_ref("&<" #N ">", &t_##N);
 #include "types.h"
