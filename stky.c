@@ -763,9 +763,9 @@ stky_F(print_array) {
   printf(exec ? "}" : "]");
 }
 stky_F(print_dict) {
-  printf("{{ ");
+  printf("<< ");
   stky_call(stky_f(print_space), stky_f(array_each));
-  printf("}}");
+  printf(">>");
 }
 stky_F(print_mark) {
   stky_pop();
