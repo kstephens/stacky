@@ -15,11 +15,11 @@ stky : stky.c
 
 gen/prims.h : *.c
 	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -Dstky_F=stky_F -E $< | perl -ne 'while ( s~(stky_F\([^\)]+\))~~ ) { print "def_", $$1, "\n"; }' | sort -u > $@
+	$(CC) $(CFLAGS) -Ds_F=s_F -E $< | perl -ne 'while ( s~(s_F\([^\)]+\))~~ ) { print "def_", $$1, "\n"; }' | sort -u > $@
 
 gen/types.h : *.c
 	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -Dstky_F=stky_F -E $< | perl -ne 'while ( s~struct stky_(\w+)~~ ) { print "TYPE(", $$1, ")\n"; }' | sort -u > $@
+	$(CC) $(CFLAGS) -Ds_F=s_F -E $< | perl -ne 'while ( s~struct s_(\w+)~~ ) { print "TYPE(", $$1, ")\n"; }' | sort -u > $@
 	echo "#undef TYPE" >> $@
 
 clean :
