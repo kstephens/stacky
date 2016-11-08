@@ -1,7 +1,0 @@
-+ t/test2.t
-@%eq @%eq %eq = 1
-@%eq @%eq %eq = 1
- sym: foo
- sym: foo
- sym: foo
-exit(0)

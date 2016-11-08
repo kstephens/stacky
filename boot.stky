@@ -1,4 +1,12 @@
+/{ /&mark &exec
+  &d_stack &array_top &dict_set
+/} /&array_end_exec &exec
+  &d_stack &array_top &dict_set
 /def { &d_stack &array_top &dict_set } &d_stack &array_top &dict_set
+/[ /&mark &exec def
+/] /&array_end &exec def
+/<< /&mark &exec def
+/>> { &array_end &array_to_dict } def
 /pop /&pop &exec def
 /dup /&dup &exec def
 /p { &println } def
