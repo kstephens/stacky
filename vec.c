@@ -44,14 +44,31 @@ s_FT(T,make) // v1 v2 ... vn n | [ v1 v2 ... vn ]
   s_popn(s);
   s_push(s_v_o(self));
 }
+s_FT(T,dup) { /// array | array-copy
+  s_T(T,)* this = s_O(V(0), T);
+  size_t s = this->p - this->b;
+  s_T(T,)* self = s_type_alloc(paste2(t_,T));
+  s_T(T,_init)(self, s);
+  memcpy(self->b, this->b, sizeof(self->b[0]) * s);
+  self->p = self->b + s;
+  V(0) = s_v_o(self);
+}
 s_FT(T,push) { // v array |
   s_T(T,)* self = s_O(s_pop(), T);
   s_v v = s_pop();
   s_T(T,_push)(self, v);
 }
+s_FT(T,pop) { // array | v || null
+  s_T(T,)* self = s_O(V(0), T);
+  V(0) = self->p > self->b ? T_box(*(-- self->p)) : 0;
+}
 s_FT(T,len) { // [ e0 ... en ] | n - 1
   s_T(T,)* self = s_O(V(0), T);
   V(0) = s_v_i(self->p - self->b);
+}
+s_FT(T,size) { // [ e0 ... en ] | n - 1
+  s_T(T,)* self = s_O(V(0), T);
+  V(0) = s_v_i(self->s);
 }
 s_FT(T,top) { // [ e0 ... en ] | en
   V(0) = T_box(s_O(V(0), T)->p[-1]);
