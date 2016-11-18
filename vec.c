@@ -72,8 +72,8 @@ s_FT(T,each) { // [ e0 .. en ] f | e0 f .. en f
   s_T(T,)* self = s_O(s_pop(), T);
   T_t* p = self->b;
   if ( p < self->p ) {
-    while ( p + 1 < self->p ) {
-      s_push(T_box(*(p ++)));
+    for ( size_t i = 0; (p = self->b + i) + 1 < self->p; ++ i ) {
+      s_push(T_box(*p));
       s_eval(f);
     }
     s_push(T_box(*p));
