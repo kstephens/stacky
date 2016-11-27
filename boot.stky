@@ -3,6 +3,7 @@
 /} /&array_end_exec &exec
   &d_stack &array_top &dict_set
 /def { &d_stack &array_top &dict_set } &d_stack &array_top &dict_set
+&top /&null &exch def
 /[ /&mark &exec def
 /] /&array_end &exec def
 /<< /&mark &exec def

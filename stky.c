@@ -648,15 +648,18 @@ void s_eval(s_v v)
   }
 }
 
+s_F(if_else) { // t f v | (t eval or f eval)
+  if ( ! V(0) ) V(2) = V(1);
+  s_popn(2);
+  s_e(exec);
+}
 s_F(or) { // a b | (a or b)
-  s_v b = s_pop();
-  s_v a = s_pop();
-  s_push(a ? a : b);
+  if ( ! V(1) ) V(1) = V(0);
+  s_popn(1);
 }
 s_F(and) { // a b | (a and b)
-  s_v b = s_pop();
-  s_v a = s_pop();
-  s_push(! a ? a : b);
+  if ( V(1) ) V(1) = V(0);
+  s_popn(1);
 }
 
 s_F(write_charP) {
