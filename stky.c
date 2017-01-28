@@ -9,7 +9,11 @@
 #define paste2_(A,B) A##B
 #define paste2(A,B) paste2_(A,B)
 
+#if 1
 #define s_inline static __inline__ __attribute__((always_inline))
+#else
+#define s_inline static
+#endif
 
 struct s_object;
 typedef struct s_object s_object;

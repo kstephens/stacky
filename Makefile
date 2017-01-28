@@ -1,7 +1,9 @@
-CFLAGS_OPT = -O3
+#CFLAGS_OPT = -O2
+CFLAGS_OPT = 
 CFLAGS += $(CFLAGS_OPT)
 CFLAGS += -g
 CFLAGS += -Wall
+CFLAGS+= -momit-leaf-frame-pointer
 
 CFLAGS += -Igen
 CFLAGS += -Iboot
@@ -9,7 +11,9 @@ CFLAGS += -I/opt/local/include
 LDFLAGS += -L/opt/local/lib
 LDFLAGS += -lgc
 
-all : gen/prims.h gen/types.h stky
+all : early stky
+
+early : gen/prims.h gen/types.h
 
 stky : stky.c
 
@@ -23,7 +27,9 @@ gen/types.h : *.c
 	echo "#undef TYPE" >> $@
 
 clean :
-	rm -f stky gen/*
+	rm -f stky gen/* stky.s
+
+stky.s : early
 
 %.s : %.c
 	$(CC) $(CFLAGS) -S -o - $(@:.s=.c) | tool/asm-source > $@
