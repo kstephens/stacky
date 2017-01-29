@@ -674,7 +674,7 @@ void s_eval(Y__, s_v v)
   }
 }
 
-s_F(if_else) { // t f v | (t eval or f eval)
+s_F(if_else) { // t f v | (t exec or f exec)
   if ( ! V(0) ) V(2) = V(1);
   s_popn(2);
   s_e(exec);
@@ -699,6 +699,7 @@ s_F(print_voidP) {
   printf("%p", s_pop());
 }
 
+/* Refactor into boot.stky */
 s_F(array_end) { // mark v0 .. vn | [ v0 .. vn ]
   s_exec(s_f(v_stack), s_g(mark), s_f(count_to),
             s_f(array_make), s_f(exch), s_f(pop));
@@ -706,7 +707,7 @@ s_F(array_end) { // mark v0 .. vn | [ v0 .. vn ]
 s_F(array_end_exec) { // mark v0 .. vn | { v0 .. vn }
   s_exec(s_f(array_end), s_f(set_exec)); 
 }
-s_F(make_selector) { // default_method
+s_F(make_selector) { // default_method | selector
   s_v default_method = s_pop();
   s_call(s_g(mark), s_f(array_end));
   s_v methods = s_callp(s_f(array_to_dict));
@@ -729,15 +730,10 @@ s_F(add_method) { // type method selector
   s_e(dict_set);
 }
 
+/* Refactor into boot.stky */
 s_FD(print_object);
 s_F(print) {
-  s_v v = V(0);
-  if ( s_v_o_(v) == Y->v_stack ) {
-    s_pop();
-    printf("<<v_stack>>");
-    return;
-  }
-  s_push(v);
+  s_e(dup);
   s_e(type);
   s_push(Y->print_methods);
   s_e(dict_get);
@@ -785,7 +781,13 @@ s_F(print_type) {
   s_call(s_O(s_pop(), type)->name, s_f(write_string));
 }
 s_F(print_array) {
-  int exec = s_v_execQ(s_top());
+  s_v v = V(0);
+  if ( s_v_o_(v) == Y->v_stack ) {
+    s_pop();
+    printf("<<v_stack>>");
+    return;
+  }
+  int exec = s_v_execQ(v);
   printf(exec ? "{ " : "[ ");
   s_call(s_f(print_space), s_f(array_each));
   printf(exec ? "}" : "]");
