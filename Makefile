@@ -1,9 +1,11 @@
-#CFLAGS_OPT = -O2
-CFLAGS_OPT = 
+CFLAGS_OPT = -O3
+CFLAGS_OPT =
+
 CFLAGS += $(CFLAGS_OPT)
 CFLAGS += -g
 CFLAGS += -Wall
-CFLAGS+= -momit-leaf-frame-pointer
+# OLDER VERSIONS OF GCC MAY NOT SUPPORT:
+CFLAGS += -momit-leaf-frame-pointer
 
 CFLAGS += -Igen
 CFLAGS += -Iboot
@@ -28,9 +30,12 @@ gen/types.h : *.c
 	echo "#undef TYPE" >> $@
 
 clean :
-	rm -f stky gen/* stky.s
+	rm -f stky gen/* *.s
 
 stky.s : early
 
 %.s : %.c
 	$(CC) $(CFLAGS) -S -o - $(@:.s=.c) | tool/asm-source > $@
+
+default-defines:
+	$(CC) -E -dM - < /dev/null | sort
