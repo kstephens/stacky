@@ -937,6 +937,12 @@ void* s_init()
   s_call(s_g(core_dict), s_v_o(Y->d_stack), s_f(array_push));
   Y->array_exec_begin = s_symbol_new(Y, "{");
   Y->array_exec_end = s_symbol_new(Y, "}");
+
+#define def_s_g(N) s_def_ref(Y, "&" #N, &Y->N);
+  def_s_g(_stdin)
+  def_s_g(_stdout)
+  def_s_g(_stderr)
+#undef def_s_g
 #ifndef TYPE
 #define TYPE(N) s_def_ref(Y, "&<" #N ">", &Y->t_##N);
 #include "types.h"
