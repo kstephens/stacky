@@ -53,9 +53,9 @@ s_FT(T,dup) { /// array | array-copy
   self->p = self->b + s;
   V(0) = s_v_o(self);
 }
-s_FT(T,push) { // v array |
-  s_T(T,)* self = s_O(s_pop(), T);
+s_FT(T,push) { // array v |
   s_v v = s_pop();
+  s_T(T,)* self = s_O(s_pop(), T);
   s_T(T,_push)(Y, self, v);
 }
 s_FT(T,pop) { // array | v || null

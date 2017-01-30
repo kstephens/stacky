@@ -294,7 +294,6 @@ s_F(count_to) // [ ... MARK v1 v2 .. vn ] MARK | n
 #define T_unbox(V) s_v_i_(V)
 #include "vec.c"
 
-
 s_v s_string_new(Y__, const char *v, int s)
 {
   if ( s < 0 ) s = strlen(v);
@@ -398,16 +397,16 @@ s_F(dict_set_ref) { // k r dict |
       { p[1] = v; return; }
     p += 2;
   }
-  s_call(k, s_v_o(d), s_f(array_push));
-  s_call(v, s_v_o(d), s_f(array_push));
+  s_call(s_v_o(d), k, s_f(array_push));
+  s_call(s_v_o(d), v, s_f(array_push));
 }
 s_F(dict_add) { // k v dict |
   s_v d = s_pop();
   s_v v = s_pop();
   s_v k = s_pop();
-  s_call(k, d, s_f(array_push));
-  s_call(v, s_f(ref_new));
-  s_call(d, s_f(array_push));
+  s_call(d, k, s_f(array_push));
+  s_call(d, v, s_f(ref_new));
+  s_e(array_push);
 }
 s_F(dict_get) { // k dict | v
   s_e(dict_get_ref);
@@ -560,7 +559,7 @@ s_F(read_token)
   }
   switch ( state ) {
   case rs_error:
-    s_call(s_v_c(c), token, s_f(string_push));
+    s_call(token, s_v_c(c), s_f(string_push));
     value = token;
   case rs_eos:
   case rs_stop:
@@ -574,7 +573,7 @@ s_F(read_token)
     case '/':
       literal ++; next_c();
     case '-': case '+':
-      s_call(s_v_c(c), token, s_f(string_push));
+      s_call(token, s_v_c(c), s_f(string_push));
       pot_num_c = c; take_c();
       next_s(rs_pot_num);
     case '0' ... '9':
@@ -602,7 +601,7 @@ s_F(read_token)
       value = s_callp(token, s_f(string_to_symbol));
       next_s(rs_stop);
     default:
-      s_call(s_v_c(c), token, s_f(string_push));
+      s_call(token, s_v_c(c), s_f(string_push));
       next_c();
     }
   case rs_pot_num:
@@ -615,7 +614,7 @@ s_F(read_token)
   case rs_int:
     switch ( c ) {
     case '0' ... '9':
-      s_call(s_v_c(c), token, s_f(string_push));
+      s_call(token, s_v_c(c), s_f(string_push));
       {
         s_i prev_n = n;
         n = n * 10 + c - '0';
@@ -934,7 +933,7 @@ void* s_init()
   s_push(s_v_i(0));
   s_exec(s_f(array_make), s_f(array_to_dict));
   s_g(core_dict) = s_pop();
-  s_call(s_g(core_dict), s_v_o(Y->d_stack), s_f(array_push));
+  s_call(s_v_o(Y->d_stack), s_g(core_dict), s_f(array_push));
   Y->array_exec_begin = s_symbol_new(Y, "{");
   Y->array_exec_end = s_symbol_new(Y, "}");
 
