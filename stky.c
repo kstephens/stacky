@@ -511,6 +511,11 @@ s_F(close) { // IO |
   io->opaque = 0;
 }
 
+s_F(io_print_voidP) { // v io |
+  s_io* io = s_O(s_pop(), io);
+  fprintf(io->opaque, "%p", s_pop());
+}
+
 s_v s_io_new_FILEP(Y__, FILE *fp, const char *name, const char *mode)
 {
   s_io *o = s_type_alloc(Y, s_t(io));
@@ -698,14 +703,14 @@ s_F(and) { // a b | (a and b)
 }
 
 s_F(write_charP) {
-  printf("%s", s_pop());
+  fprintf(stdout, "%s", s_pop());
 }
 s_F(write_string) {
   s_string* s = s_O(s_pop(), string);
   fwrite(s->b, sizeof(s->b[0]), s->p - s->b, stdout);
 }
 s_F(print_voidP) {
-  printf("%p", s_pop());
+  fprintf(stdout, "%p", s_pop());
 }
 
 /* Refactor into boot.stky */
@@ -745,7 +750,7 @@ s_F(print) {
   s_v v = V(0);
   if ( s_v_o_(v) == Y->v_stack ) {
     s_pop();
-    printf("<<v_stack>>");
+    fprintf(stdout, "<<v_stack>>");
     return;
   }
   s_e(dup);
@@ -773,7 +778,7 @@ s_F(print_fun) {
   }
 }
 s_F(print_fixnum) {
-  printf("%lld", (long long) s_v_i_(s_pop()));
+  fprintf(stdout, "%lld", (long long) s_v_i_(s_pop()));
 }
 s_F(print_symbol) {
   s_call(s_O(s_pop(), symbol)->name, s_f(write_string));
@@ -797,24 +802,24 @@ s_F(print_type) {
 }
 s_F(print_array) {
   int exec = s_v_execQ(V(0));
-  printf(exec ? "{ " : "[ ");
+  s_call(exec ? "{ " : "[ ", s_f(write_charP));
   s_call(s_f(print_space), s_f(array_each));
-  printf(exec ? "}" : "]");
+  s_call(exec ? "}" : "]"  , s_f(write_charP));
 }
 s_F(print_dict) {
-  printf("<< ");
+  s_call("<< ", s_f(write_charP));
   s_call(s_f(print_space), s_f(array_each));
-  printf(">>");
+  s_call(">>", s_f(write_charP));
 }
 s_F(print_mark) {
   s_pop();
-  printf("<<mark>>");
+  s_call("<<mark>>", s_f(write_charP));
 }
 s_F(print_object) {
   s_e(dup);
   s_e(type);
   s_e(print);
-  printf(":%p", s_pop());
+  s_e(print_voidP);
 }
 s_F(println) {
   s_e(print);
@@ -844,9 +849,9 @@ s_F(eval_io) {
       s_e(println);
     }
     // s_call(Y->sym_dict, s_f(println));
-    printf("  # v_stack: ");
+    fprintf(stdout, "  # v_stack: ");
     s_call(s_v_o(Y->v_stack), s_f(print_array));
-    printf("\n");
+    fprintf(stdout, "\n");
   }
 }
 
