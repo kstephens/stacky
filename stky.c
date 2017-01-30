@@ -534,6 +534,7 @@ enum read_state {
     rs_int,
     rs_char,
     rs_string,
+    rs_string_escape,
 };
 
 s_F(read_token)
@@ -636,12 +637,17 @@ s_F(read_token)
     }
   case rs_string:
     switch ( c ) {
+    case '\\':
+      take_c(); next_s(rs_string_escape);
     case '"':
       value = token; take_c(); next_s(rs_stop);
     default:
-      s_call(s_v_c(c), token, s_f(string_push));
+      s_call(token, s_v_c(c), s_f(string_push));
       next_c();
     }
+  case rs_string_escape:
+    s_call(token, s_v_c(c), s_f(string_push));
+    take_c(); next_s(rs_string);
   default:
     abort();
   }
