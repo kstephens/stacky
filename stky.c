@@ -361,7 +361,7 @@ s_F(cmp_string) {
   if ( c == 0 ) c = al < bl ? -1 : al == bl ? 0 : 1;
   s_push(s_v_i(c));
 }
-s_F(array_to_dict) // [ k1 v1 ... kn vn ] | @[ dict ]@
+s_F(array_to_dict) // [ k1 v1 ... kn vn ] | << dict >>
 {
   s_array* a = s_v_o_(s_pop());
   s_dict* d = s_type_alloc(Y, s_t(dict));
