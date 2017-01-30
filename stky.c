@@ -733,6 +733,12 @@ s_F(add_method) { // type method selector
 /* Refactor into boot.stky */
 s_FD(print_object);
 s_F(print) {
+  s_v v = V(0);
+  if ( s_v_o_(v) == Y->v_stack ) {
+    s_pop();
+    printf("<<v_stack>>");
+    return;
+  }
   s_e(dup);
   s_e(type);
   s_push(Y->print_methods);
@@ -781,13 +787,7 @@ s_F(print_type) {
   s_call(s_O(s_pop(), type)->name, s_f(write_string));
 }
 s_F(print_array) {
-  s_v v = V(0);
-  if ( s_v_o_(v) == Y->v_stack ) {
-    s_pop();
-    printf("<<v_stack>>");
-    return;
-  }
-  int exec = s_v_execQ(v);
+  int exec = s_v_execQ(V(0));
   printf(exec ? "{ " : "[ ");
   s_call(s_f(print_space), s_f(array_each));
   printf(exec ? "}" : "]");
