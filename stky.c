@@ -904,7 +904,6 @@ void* s_init()
   s_O(s_t(array) , type)->eval = s_f(eval_array);
   s_O(s_t(dict)  , type)->eval = s_f(eval_dict);
   s_O(s_t(symbol), type)->eval = s_f(eval_symbol);
-  s_O(s_t(io),     type)->eval = s_f(eval_io);
   s_O(s_t(cell),   type)->eval = s_f(eval_cell);
 
   s_g(mark) = s_v_o(s_type_alloc(Y, s_t(mark)));
