@@ -781,6 +781,7 @@ s_F(print_fixnum) {
   fprintf(stdout, "%lld", (long long) s_v_i_(s_pop()));
 }
 s_F(print_symbol) {
+  s_call("/", s_f(write_charP));
   s_call(s_O(s_pop(), symbol)->name, s_f(write_string));
 }
 s_F(print_string) {
