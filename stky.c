@@ -41,6 +41,10 @@ typedef struct s_stky {
 #define TYPE(N) s_v t_##N;
 #include "types.h"
 #endif
+#ifndef def_s_F
+#define def_s_F(N) s_v f_##N;
+#include "prims.h"
+#endif
 } s_stky;
 
 typedef struct s_hdr {
@@ -158,10 +162,10 @@ s_inline s_v   _s_top(Y__)            { return Y->v_stack->p[-1]; }
 
 #define V(i) (Y->v_stack->p[-(i) - 1])
 
-#define s_f(name) paste2(s_f_,name)
-#define s_FD(name) void paste2(s_F_,name)(Y__); extern s_f s_f(name);
+#define s_f(name) Y->paste2(f_,name)
+#define s_FD(name) void paste2(s_F_,name)(Y__);
 #ifndef s_F
-#define s_F(name) void paste2(s_F_,name)(Y__); s_f s_f(name) = paste2(s_F_,name); void paste2(s_F_,name)(Y__)
+#define s_F(name) void paste2(s_F_,name)(Y__)
 #endif
 #define s_e(name) s_eval(Y, s_f(name))
 
@@ -863,6 +867,11 @@ void* s_init()
   s_O(s_t(type), type)->size = s_v_i(sizeof(s_type));
   s_v t;
 
+#ifndef def_s_F
+#define def_s_F(N) s_f(N) = paste2(s_F_,N);
+#include "prims.h"
+#endif
+
 #ifndef TYPE
 #define TYPE(N)                                                 \
   s_t(N) = s_t(N) ?: s_v_o(s_type_alloc(Y, s_t(type)));         \
@@ -933,8 +942,10 @@ void* s_init()
 #include "types.h"
 #endif
 #define F(N) s_def_ref(Y, "&" #N, &s_f(N))
+#ifndef def_s_F
 #define def_s_F(N) F(N);
 #include "prims.h"
+#endif
 
   // NON-CORE:
   F(print);

@@ -20,6 +20,7 @@ stky : stky.c
 gen/prims.h : *.c
 	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -Ds_F=s_F -E $< | perl -ne 'while ( s~(s_F\([^\)]+\))~~ ) { print "def_", $$1, "\n"; }' | sort -u > $@
+	echo "#undef def_s_F" >> $@
 
 gen/types.h : *.c
 	mkdir -p $(dir $@)
