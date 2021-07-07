@@ -10,5 +10,25 @@
 />> { &array_end &array_to_dict } def
 /pop /&pop &exec def
 /dup /&dup &exec def
+/exch /&exch &exec def
+/counttomark { &v_stack &mark &count_to } def
+/arraytomark { counttomark &array_make exch pop } def
 /p { &println } def
 /. { dup p } def
+/print_string {
+  "\"" &_stdout &io_write_string
+  &_stdout &io_write_string
+  "\"" &_stdout &io_write_string
+} def
+/print_fun {
+  "@fun:" &_stdout &io_write_string
+  dup &fun_to_string dup
+  { &_stdout exch &io_write_string pop }
+  { pop &_stdout exch &io_print_voidP }
+  &if_else
+} def
+
+%{
+%  { &mark &dup &type methods &dict_get 0 methods &dict_get &or &exec }
+%  methods &set_meta
+% }
